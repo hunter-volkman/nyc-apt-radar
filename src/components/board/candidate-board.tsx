@@ -1,6 +1,11 @@
 import Link from "next/link";
-import { GlassPanel } from "@/components/glass/glass-panel";
-import { StatusPill } from "@/components/glass/status-pill";
+import {
+  EligibilityBadge,
+  RiskBadge,
+  ScoreTile,
+  StatusBadge,
+} from "@/components/listings/listing-badges";
+import { Separator } from "@/components/ui/separator";
 import { formatMoney } from "@/lib/money";
 import type { ListingBundle } from "@/lib/listing-view-models";
 import type { ListingStatus } from "@/lib/types";
@@ -13,56 +18,66 @@ type BoardColumn = {
 
 export function CandidateBoard({ columns }: { columns: BoardColumn[] }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-7">
-      {columns.map((column) => (
-        <GlassPanel as="section" className="min-h-64 rounded-[24px] p-3" key={column.status}>
-          <div className="mb-3 flex items-center justify-between gap-2 px-1">
-            <StatusPill status={column.status} />
-            <span className="text-xs font-bold text-white/54">{column.listings.length}</span>
-          </div>
+    <div className="overflow-x-auto pb-2">
+      <div className="grid min-w-[1120px] grid-cols-7 gap-3">
+        {columns.map((column) => (
+          <section className="min-h-72 rounded-lg border bg-muted/30 p-2" key={column.status}>
+            <div className="mb-2 flex items-center justify-between gap-2 px-1">
+              <StatusBadge status={column.status} />
+              <span className="rounded-md border bg-card px-2 py-0.5 text-xs font-semibold text-muted-foreground">
+                {column.listings.length}
+              </span>
+            </div>
+            <Separator className="mb-2" />
 
-          <div className="grid gap-3">
-            {column.listings.length ? (
-              column.listings.map(({ listing, evaluation }) => {
-                return (
-                  <Link
-                    className="block rounded-[18px] border border-white/10 bg-black/20 p-3 transition hover:border-white/24 hover:bg-white/[0.07]"
-                    href={`/listings/${listing.id}`}
-                    key={listing.id}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="text-sm font-black leading-5 text-white">{listing.title}</h2>
-                        <p className="mt-1 text-xs leading-5 text-white/60">
-                          {formatMoney(listing.rentMonthly)} - {listing.neighborhood}
-                        </p>
+            <div className="grid gap-2">
+              {column.listings.length ? (
+                column.listings.map(({ listing, evaluation }) => {
+                  return (
+                    <Link
+                      className="block rounded-md border bg-card p-3 shadow-sm transition hover:border-foreground/25 hover:bg-accent/40"
+                      href={`/listings/${listing.id}`}
+                      key={listing.id}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h2 className="truncate text-sm font-semibold leading-5">{listing.title}</h2>
+                          <p className="mt-1 text-sm font-semibold">
+                            {formatMoney(listing.rentMonthly)}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {listing.neighborhood ?? "Neighborhood unknown"}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            {listing.address ?? "Address missing"}
+                          </p>
+                        </div>
+                        <ScoreTile compact eligible={evaluation.eligible} score={evaluation.totalScore} />
                       </div>
-                      <span className={evaluation.eligible ? "score-chip !h-11 !w-11 !text-base" : "score-chip score-chip-muted !h-11 !w-11 !text-base"}>
-                        {evaluation.totalScore}
-                      </span>
-                    </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <StatusPill status={listing.status} />
-                      <span className={evaluation.eligible ? "risk-pill risk-low" : "risk-pill risk-high"}>
-                        {evaluation.eligible ? "Eligible" : "Ineligible"}
-                      </span>
-                      <span className={`risk-pill risk-${listing.riskLevel}`}>{listing.mainRisk}</span>
-                    </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <EligibilityBadge eligible={evaluation.eligible} />
+                        <RiskBadge className="max-w-[8.5rem]" risk={listing.riskLevel}>
+                          {listing.mainRisk}
+                        </RiskBadge>
+                      </div>
 
-                    <p className="mt-3 text-xs font-semibold leading-5 text-white/76">{listing.nextAction}</p>
-                    <p className="mt-3 text-xs text-white/46">{listing.updatedAtLabel}</p>
-                  </Link>
-                );
-              })
-            ) : (
-              <div className="rounded-[18px] border border-dashed border-white/12 p-4 text-sm leading-6 text-white/46">
-                No candidates
-              </div>
-            )}
-          </div>
-        </GlassPanel>
-      ))}
+                      <p className="mt-3 line-clamp-2 text-xs font-medium leading-5">
+                        {listing.nextAction}
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">{listing.updatedAtLabel}</p>
+                    </Link>
+                  );
+                })
+              ) : (
+                <div className="rounded-md border border-dashed bg-card/60 p-3 text-sm leading-6 text-muted-foreground">
+                  No candidates
+                </div>
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

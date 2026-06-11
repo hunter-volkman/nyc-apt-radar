@@ -1,7 +1,9 @@
+import { Inbox, LayoutDashboard } from "lucide-react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { CandidateBoard } from "@/components/board/candidate-board";
-import { GlassButton } from "@/components/glass/glass-button";
-import { GlassShell } from "@/components/glass/glass-shell";
+import { AppShell } from "@/components/layout/app-shell";
+import { Button } from "@/components/ui/button";
 import { getBoardColumns } from "@/lib/listing-view-models";
 
 export default async function BoardPage() {
@@ -9,19 +11,29 @@ export default async function BoardPage() {
   const columns = getBoardColumns();
 
   return (
-    <GlassShell
+    <AppShell
       active="board"
       eyebrow="Candidate Board"
       title="Move listings through the pipeline."
       subtitle="Every candidate sits in one exact status, with score, risk, next action, and update recency visible."
       action={
         <>
-          <GlassButton href="/inbox" variant="primary">Capture Listing</GlassButton>
-          <GlassButton href="/">Today</GlassButton>
+          <Button asChild size="sm">
+            <Link href="/inbox">
+              <Inbox />
+              Capture
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/">
+              <LayoutDashboard />
+              Today
+            </Link>
+          </Button>
         </>
       }
     >
       <CandidateBoard columns={columns} />
-    </GlassShell>
+    </AppShell>
   );
 }

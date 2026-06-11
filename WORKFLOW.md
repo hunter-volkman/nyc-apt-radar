@@ -53,7 +53,7 @@ Done when:
 - Today dashboard exists.
 - Candidate Board exists.
 - Demo data appears.
-- Liquid-glass design system exists.
+- Initial interface exists.
 - `README.md` exists.
 - `AGENTS.md` exists.
 - Build passes.
@@ -85,7 +85,7 @@ Create a worktree thread for persistence only.
 
 Add local SQLite persistence with Drizzle. Implement schema, seed data, listing create/read/update/delete routes, and status updates.
 
-Preserve the existing interface and visual system. Do not change scoring, parser, outreach, or glass design beyond what persistence requires.
+Preserve the existing interface and visual system. Do not change scoring, parser, or outreach behavior beyond what persistence requires.
 
 Run tests/build and summarize the files changed.
 ```
@@ -157,7 +157,47 @@ Commit:
 git commit -m "Add deterministic listing scoring"
 ```
 
-## Thread 3: Parser
+## Thread 3: shadcn UI Migration
+
+Mode: worktree
+
+Purpose:
+
+- shadcn/ui setup
+- Operational visual system
+- Today command screen
+- Faster Candidate Board scanning
+- Inbox capture workflow
+- Listing Detail decision page
+- Phone-usable Tours screen
+
+Prompt:
+
+```text
+Create a worktree thread for shadcn UI migration only.
+
+Use shadcn/ui as the component foundation. Replace the old decorative visual direction with a calm, dense apartment command center.
+
+Make Today, Board, Inbox, Listing Detail, and Tours easier to scan and act on. Do not change database schema, scoring logic, parser behavior, outreach behavior, or persistence behavior.
+
+Run tests, seed, lint, build, and browser smoke tests.
+```
+
+Done when:
+
+- shadcn/ui is initialized.
+- Current screens use shadcn-based components.
+- Critical listing data is more readable.
+- Stubs are clearly disabled or labeled.
+- Tests, seed, lint, and build pass.
+
+Commit:
+
+```bash
+git commit -m "Migrate interface to shadcn design system"
+```
+
+## Thread 4: Parser
 
 Mode: worktree
 
@@ -199,7 +239,7 @@ Commit:
 git commit -m "Add listing parser workflow"
 ```
 
-## Thread 4: Outreach and Briefing
+## Thread 5: Outreach and Briefing
 
 Mode: worktree
 
@@ -238,22 +278,22 @@ Commit:
 git commit -m "Add outreach and daily briefing"
 ```
 
-## Thread 5: Liquid-Glass Polish
+## Thread 6: Interface Polish
 
 Mode: worktree
 
 Purpose:
 
-- Make the application feel premium without damaging usability.
+- Refine the shadcn-based interface without damaging usability.
 
 Prompt:
 
 ```text
 Create a worktree thread for visual polish only.
 
-Improve the liquid-glass visual system, responsive layout, empty states, listing cards, status pills, dashboard hierarchy, and readability. Do not change business logic, database schema, parser behavior, or scoring rules.
+Improve the shadcn-based interface, responsive layout, empty states, listing cards, status badges, dashboard hierarchy, and readability. Do not change business logic, database schema, parser behavior, or scoring rules.
 
-The application should feel like a calm Apple-style glass cockpit for New York City apartment hunting. Critical information must remain readable.
+The application should feel like a calm, dense apartment command center for New York City apartment hunting. Critical information must remain readable.
 
 Run build and summarize visual changes.
 ```
@@ -269,10 +309,10 @@ Done when:
 Commit:
 
 ```bash
-git commit -m "Polish liquid glass interface"
+git commit -m "Polish shadcn interface"
 ```
 
-## Thread 6: New York City Building-Risk Stubs
+## Thread 7: New York City Building-Risk Stubs
 
 Mode: worktree
 

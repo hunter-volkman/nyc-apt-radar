@@ -9,7 +9,7 @@ Repository: `stoop-app`
 One-line description:
 
 ```text
-Stoop is a liquid-glass apartment command center for finding a New York City lease fast.
+Stoop is a local-first apartment command center for finding a New York City lease fast.
 ```
 
 Tagline:
@@ -249,7 +249,7 @@ The application must not upload or store these documents in version zero.
 Stoop should feel like:
 
 ```text
-Apple Weather + visionOS glass + Linear discipline + New York City apartment urgency
+Linear discipline + command-center density + New York City apartment urgency
 ```
 
 It should not feel like:
@@ -263,32 +263,30 @@ Design principles:
 
 - Calm over cute
 - Clarity over decoration
-- Glass as a layer, not a gimmick
 - Readability over visual flourish
 - Status and next action always visible
 - Dense apartment data without clutter
+- Mobile tour use is a first-class target
 
 Use:
 
-- Frosted glass panels
-- Large rounded corners
-- Subtle inner highlights
-- Soft shadows
-- Dark city or map-inspired background
-- High-contrast foreground text
-- Small saturated accents
-- Clean status pills
+- shadcn/ui primitives
+- Compact cards and rows
+- Stable status badges
+- Clear primary and secondary buttons
+- Readable fields and review surfaces
+- Progress indicators for scoring and readiness
+- Neutral surfaces with restrained status color
 
-Critical listing data must never sit directly on chaotic imagery without a readability layer.
+Critical listing data must never be buried or placed on decorative imagery.
 
 Required design files:
 
-- `src/styles/glass.css`
-- `src/components/glass/glass-panel.tsx`
-- `src/components/glass/glass-button.tsx`
-- `src/components/glass/glass-input.tsx`
-- `src/components/glass/glass-shell.tsx`
-- `src/components/glass/status-pill.tsx`
+- `components.json`
+- `src/components/ui/*`
+- `src/components/layout/app-shell.tsx`
+- `src/components/listings/listing-badges.tsx`
+- `src/app/globals.css`
 
 ## Technical Stack
 
@@ -299,7 +297,7 @@ Initial stack:
 - Next.js
 - TypeScript
 - Tailwind CSS, the Cascading Style Sheets utility framework
-- Custom Cascading Style Sheets glass system
+- shadcn/ui
 - SQLite local database
 - Drizzle Object Relational Mapper
 - OpenAI server routes gated by `OPENAI_API_KEY`
@@ -636,15 +634,21 @@ stoop-app/
           daily-briefing/
             route.ts
     components/
-      glass/
-        glass-panel.tsx
-        glass-button.tsx
-        glass-input.tsx
-        glass-shell.tsx
-        status-pill.tsx
+      layout/
+        app-shell.tsx
+      ui/
+        button.tsx
+        card.tsx
+        badge.tsx
+        input.tsx
+        textarea.tsx
+        tabs.tsx
+        separator.tsx
+        checkbox.tsx
+        progress.tsx
       listings/
         listing-card.tsx
-        listing-detail.tsx
+        listing-badges.tsx
         listing-score.tsx
         listing-risk-panel.tsx
       board/
@@ -674,7 +678,6 @@ stoop-app/
       money.ts
     styles/
       globals.css
-      glass.css
   tests/
     scoring.test.ts
     parser-fallback.test.ts
@@ -690,8 +693,7 @@ stoop-app/
 Version zero is done when:
 
 - The application runs locally.
-- The interface looks visually distinctive.
-- Glass panels remain readable.
+- The interface is calm, dense, and fast to scan.
 - Hunter can paste a listing.
 - The application parses the listing.
 - Hunter can edit parsed fields.

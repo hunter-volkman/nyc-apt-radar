@@ -1,5 +1,11 @@
-import { GlassPanel } from "@/components/glass/glass-panel";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { DemoListing, ListingEvaluation } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function ListingRiskPanel({
   listing,
@@ -9,29 +15,34 @@ export function ListingRiskPanel({
   evaluation: ListingEvaluation;
 }) {
   return (
-    <GlassPanel variant={listing.riskLevel === "high" ? "danger" : "default"} className="grid gap-5">
-      <div>
-        <p className="fine-label">Building risk</p>
-        <h2 className="mt-2 text-2xl font-black text-white">Unknown until sourced</h2>
-        <p className="mt-2 text-sm leading-6 text-white/68">
+    <Card
+      className={cn(
+        "rounded-lg shadow-sm",
+        listing.riskLevel === "high" && "border-red-200 bg-red-50/60",
+      )}
+    >
+      <CardHeader>
+        <p className="stoop-label">Building risk</p>
+        <CardTitle className="text-lg font-semibold">Unknown until sourced</CardTitle>
+        <p className="text-sm leading-6 text-muted-foreground">
           No live HPD, DOB, 311, or rent-stabilization data is connected in Thread 0.
         </p>
-      </div>
+      </CardHeader>
 
-      <div className="grid gap-3">
+      <CardContent className="grid gap-3">
         <RiskList title="Listing risks" items={evaluation.risks} />
         <RiskList title="Red flags" items={listing.redFlags.length ? listing.redFlags : ["None captured"]} />
         <RiskList title="Open questions" items={evaluation.openQuestions} />
-      </div>
-    </GlassPanel>
+      </CardContent>
+    </Card>
   );
 }
 
 function RiskList({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
-      <p className="fine-label">{title}</p>
-      <ul className="mt-3 grid gap-2 text-sm leading-5 text-white/76">
+    <div className="rounded-md border bg-card p-3">
+      <p className="stoop-label">{title}</p>
+      <ul className="mt-2 grid gap-2 text-sm leading-5 text-foreground">
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}
