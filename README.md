@@ -28,14 +28,14 @@ npm run build
 - Candidate Board shows the exact allowed statuses: `new`, `contacted`, `tour_scheduled`, `toured`, `applied`, `dead`, and `leased`.
 - Listing Detail shows summary, score breakdown, hard filters, strengths, risks, open questions, outreach draft, tour checklist, notes, building-risk status, and decision actions.
 - Status changes persist through server actions.
-- Inbox saves an editable review as a candidate.
+- Inbox parses pasted listing text or broker messages into an editable review, then saves the reviewed candidate.
+- Parser fallback works without `OPENAI_API_KEY`; when a key exists, the parser can use an OpenAI-backed extraction path and falls back safely on errors.
 - Tours page tracks checklist state and verdicts from local data.
 - Application readiness tracks checklist state without uploading or storing sensitive documents.
 - The interface uses shadcn/ui components in `src/components/ui/*`.
 
 ## Stubbed For Later Threads
 
-- Parser extraction is not implemented yet; capture/review fields are editable and the parser control is labeled as a stub.
 - Outreach drafts are demo drafts and are never sent automatically.
 - Draft storage and screenshot upload are labeled as future/stubbed surfaces.
 - Building-risk data is explicitly unknown; no live HPD, DOB, 311, or rent-stabilization integrations exist.
