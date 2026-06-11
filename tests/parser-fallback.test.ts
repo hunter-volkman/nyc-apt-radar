@@ -96,6 +96,15 @@ describe("parseListingFallback", () => {
     expect(parsed.confidence).toBe("low");
     expect(parsed.openQuestions).toContain("What is the exact address?");
   });
+
+  it("uses the supplied referenceDate for available-now listings", () => {
+    const parsed = parseListingFallback({
+      listingText: "Prospect Heights 1BR, $3,300. Available now. No fee.",
+      referenceDate: "2026-07-04",
+    });
+
+    expect(parsed.listing.availableDate).toBe("2026-07-04");
+  });
 });
 
 describe("parseListing", () => {

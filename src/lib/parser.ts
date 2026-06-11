@@ -2,7 +2,6 @@ import type { Confidence, ParsedListing, ParseListingInput } from "@/lib/types";
 
 type JsonRecord = Record<string, unknown>;
 
-const DEFAULT_REFERENCE_DATE = "2026-06-11";
 const DEFAULT_OPENAI_MODEL = "gpt-5.5";
 
 const boroughByNeighborhood: Record<string, string> = {
@@ -369,7 +368,7 @@ function normalizeParseInput(input: ParseListingInput): Required<ParseListingInp
     brokerMessage: cleanString(input.brokerMessage),
     sourceUrl: cleanString(input.sourceUrl),
     manualNotes: cleanString(input.manualNotes),
-    referenceDate: cleanString(input.referenceDate) ?? DEFAULT_REFERENCE_DATE,
+    referenceDate: cleanString(input.referenceDate) ?? getCurrentDateString(),
   };
 }
 
@@ -879,7 +878,11 @@ function resolveYear(value: string | undefined, referenceDate: string | null | u
     return 2000 + Number(value);
   }
 
-  return Number(referenceDate?.slice(0, 4)) || Number(DEFAULT_REFERENCE_DATE.slice(0, 4));
+  return Number(referenceDate?.slice(0, 4)) || new Date().getFullYear();
+}
+
+function getCurrentDateString() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function formatDate(year: number, month: number, day: number) {
