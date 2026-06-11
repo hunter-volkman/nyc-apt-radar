@@ -136,6 +136,25 @@ export type DailyBrief = {
   recommendedNextActions: string[];
 };
 
+export type ParserMode = "openai" | "fallback";
+
+export type ParseListingInput = {
+  listingText?: string | null;
+  brokerMessage?: string | null;
+  sourceUrl?: string | null;
+  manualNotes?: string | null;
+  referenceDate?: string | null;
+};
+
+export type ParsedListing = {
+  listing: Omit<Listing, "id" | "status" | "createdAt" | "updatedAt">;
+  confidence: Confidence;
+  fees: string[];
+  redFlags: string[];
+  openQuestions: string[];
+  parserMode: ParserMode;
+};
+
 export type RiskLevel = "low" | "medium" | "high";
 
 export type DemoListing = Listing & {
