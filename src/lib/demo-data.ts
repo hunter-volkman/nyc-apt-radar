@@ -1,0 +1,628 @@
+import type {
+  ApplicationReadinessItem,
+  DailyBrief,
+  DemoListing,
+  ListingEvaluation,
+  ListingStatus,
+  OutreachMessage,
+  SearchProfile,
+  Tour,
+} from "@/lib/types";
+
+export const listingStatuses: ListingStatus[] = [
+  "new",
+  "contacted",
+  "tour_scheduled",
+  "toured",
+  "applied",
+  "dead",
+  "leased",
+];
+
+export const statusLabels: Record<ListingStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  tour_scheduled: "Tour Scheduled",
+  toured: "Toured",
+  applied: "Applied",
+  dead: "Dead",
+  leased: "Leased",
+};
+
+export const searchProfile: SearchProfile = {
+  id: "hunter-nyc-2026",
+  name: "Hunter NYC June search",
+  targetMoveInDate: "2026-06-24",
+  maxRentMonthly: 3800,
+  budgetToleranceMonthly: 150,
+  preferredNeighborhoods: ["Fort Greene", "Clinton Hill", "Park Slope", "Prospect Heights"],
+  acceptableNeighborhoods: ["Upper West Side", "Astoria", "Crown Heights", "South Slope"],
+  hardNoNeighborhoods: ["Far Rockaway", "East New York", "Brownsville"],
+  commuteDestinations: [
+    {
+      label: "Midtown office",
+      address: "Bryant Park, New York, NY",
+      maxMinutes: 38,
+    },
+    {
+      label: "Downtown meetings",
+      address: "Union Square, New York, NY",
+      maxMinutes: 32,
+    },
+  ],
+  bedroomsMin: 1,
+  bedroomsMax: 2,
+  mustHaves: ["real bedroom", "laundry access", "solid light", "reasonable commute"],
+  niceToHaves: ["dishwasher", "outdoor space", "prewar details", "bike storage"],
+  hardNos: ["basement apartment", "broker pressure tactics", "unresolved tenant-paid fee"],
+};
+
+export const listings: DemoListing[] = [
+  {
+    id: "fort-greene-garden",
+    sourceName: "Broker email",
+    sourceUrl: null,
+    rawText:
+      "Fort Greene 1BR near Lafayette. Garden-facing, dishwasher, laundry in building. $3,650, June 20. Fee language says owner may cover.",
+    title: "Garden-facing 1BR near Lafayette Avenue",
+    address: "238 Adelphi Street, Brooklyn, NY",
+    unit: "2R",
+    neighborhood: "Fort Greene",
+    borough: "Brooklyn",
+    rentMonthly: 3650,
+    netEffectiveRent: null,
+    bedrooms: 1,
+    bathrooms: 1,
+    squareFeet: 690,
+    availableDate: "2026-06-20",
+    contactName: "Maya Rosen",
+    contactEmail: "maya@northline.example",
+    contactPhone: "(917) 555-0194",
+    status: "new",
+    amenities: ["dishwasher", "laundry in building", "garden view", "bike room"],
+    fees: ["owner-paid fee claimed, needs written confirmation"],
+    redFlags: ["fee language not explicit"],
+    openQuestions: ["Is the broker fee fully owner-paid?", "Can applications be reviewed same day?"],
+    personalNotes: "Looks fast, serious, and close enough to trains. Contact before lunch.",
+    createdAt: "2026-06-10T08:42:00-05:00",
+    updatedAt: "2026-06-10T10:18:00-05:00",
+    nextAction: "Ask for fee confirmation and earliest tour slot.",
+    mainRisk: "Owner-paid fee is not yet in writing.",
+    moveInFit: "June 20 works",
+    riskLevel: "medium",
+    updatedAtLabel: "18 min ago",
+  },
+  {
+    id: "uws-riverside-prewar",
+    sourceName: "Manual entry",
+    sourceUrl: "https://example.com/uws-riverside-prewar",
+    rawText: "Upper West Side prewar 1BR, $3,450, near 96th and Riverside. Elevator, laundry, live-in super.",
+    title: "Quiet prewar 1BR by Riverside",
+    address: "315 West 96th Street, New York, NY",
+    unit: "6B",
+    neighborhood: "Upper West Side",
+    borough: "Manhattan",
+    rentMonthly: 3450,
+    netEffectiveRent: null,
+    bedrooms: 1,
+    bathrooms: 1,
+    squareFeet: 640,
+    availableDate: "2026-07-01",
+    contactName: "Daniel Kim",
+    contactEmail: "daniel@westbank.example",
+    contactPhone: null,
+    status: "contacted",
+    amenities: ["elevator", "laundry", "live-in super", "river access"],
+    fees: ["standard application fee"],
+    redFlags: [],
+    openQuestions: ["Is there a dishwasher?", "How loud is Broadway side traffic?"],
+    personalNotes: "Not the first neighborhood choice, but commute and building quality look strong.",
+    createdAt: "2026-06-09T17:12:00-05:00",
+    updatedAt: "2026-06-10T09:52:00-05:00",
+    nextAction: "Follow up with two available tour windows.",
+    mainRisk: "Possible low kitchen quality.",
+    moveInFit: "July 1 works",
+    riskLevel: "low",
+    updatedAtLabel: "44 min ago",
+  },
+  {
+    id: "crown-heights-renovated",
+    sourceName: "StreetEasy context",
+    sourceUrl: "https://example.com/crown-heights-renovated",
+    rawText: "Crown Heights 1.5BR, renovated kitchen, $3,200, near Franklin Ave. Open house tonight.",
+    title: "Renovated 1.5BR near Franklin Avenue",
+    address: "742 Franklin Avenue, Brooklyn, NY",
+    unit: "3F",
+    neighborhood: "Crown Heights",
+    borough: "Brooklyn",
+    rentMonthly: 3200,
+    netEffectiveRent: null,
+    bedrooms: 1.5,
+    bathrooms: 1,
+    squareFeet: 720,
+    availableDate: "2026-06-28",
+    contactName: "Nina Patel",
+    contactEmail: "nina@avenuehomes.example",
+    contactPhone: "(646) 555-0128",
+    status: "tour_scheduled",
+    amenities: ["renovated kitchen", "dishwasher", "laundry nearby", "good light"],
+    fees: ["tenant-paid broker fee unclear"],
+    redFlags: ["fee unresolved", "open house could be crowded"],
+    openQuestions: ["Is laundry in building or nearby?", "What is the total move-in cash?"],
+    personalNotes: "Tour is worth it if the bedroom is real and the fee is negotiable.",
+    createdAt: "2026-06-10T07:58:00-05:00",
+    updatedAt: "2026-06-10T10:04:00-05:00",
+    nextAction: "Tour at 6:30 PM and verify laundry.",
+    mainRisk: "Tenant-paid fee may kill it.",
+    moveInFit: "June 28 works",
+    riskLevel: "medium",
+    updatedAtLabel: "32 min ago",
+  },
+  {
+    id: "prospect-heights-townhouse",
+    sourceName: "Broker text",
+    sourceUrl: null,
+    rawText: "Prospect Heights townhouse 1BR, $3,725, laundry, shared stoop, pets case by case.",
+    title: "Townhouse-floor 1BR off Vanderbilt",
+    address: "189 Park Place, Brooklyn, NY",
+    unit: "2",
+    neighborhood: "Prospect Heights",
+    borough: "Brooklyn",
+    rentMonthly: 3725,
+    netEffectiveRent: null,
+    bedrooms: 1,
+    bathrooms: 1,
+    squareFeet: 675,
+    availableDate: "2026-06-24",
+    contactName: "Leah Morgan",
+    contactEmail: "leah@brownstonekeys.example",
+    contactPhone: "(347) 555-0182",
+    status: "applied",
+    amenities: ["laundry", "shared stoop", "south-facing bedroom", "pets case by case"],
+    fees: ["application fee", "no broker fee stated"],
+    redFlags: ["pet policy not guaranteed"],
+    openQuestions: ["How many applications are already in?", "Is heat included?"],
+    personalNotes: "Strongest emotional pull. Application packet needs final landlord reference.",
+    createdAt: "2026-06-08T14:40:00-05:00",
+    updatedAt: "2026-06-10T08:26:00-05:00",
+    nextAction: "Send landlord reference by 2 PM.",
+    mainRisk: "Application competition.",
+    moveInFit: "Exact target date",
+    riskLevel: "low",
+    updatedAtLabel: "2 hr ago",
+  },
+  {
+    id: "astoria-sunny-railroad",
+    sourceName: "Manual entry",
+    sourceUrl: "https://example.com/astoria-sunny-railroad",
+    rawText: "Astoria sunny railroad 1BR, $2,950, near Broadway N/W. Heat hot water included.",
+    title: "Sunny railroad 1BR near Broadway N/W",
+    address: "31-18 34th Avenue, Queens, NY",
+    unit: "4L",
+    neighborhood: "Astoria",
+    borough: "Queens",
+    rentMonthly: 2950,
+    netEffectiveRent: null,
+    bedrooms: 1,
+    bathrooms: 1,
+    squareFeet: 610,
+    availableDate: "2026-07-05",
+    contactName: "Omar Saleh",
+    contactEmail: "omar@queensnest.example",
+    contactPhone: null,
+    status: "toured",
+    amenities: ["heat included", "good light", "near N/W", "laundry nearby"],
+    fees: ["one-month broker fee"],
+    redFlags: ["railroad layout", "later move-in"],
+    openQuestions: ["Can move-in shift earlier?", "Is the bedroom fully separated?"],
+    personalNotes: "Good backup, not worth rushing an application unless Brooklyn options fail.",
+    createdAt: "2026-06-07T11:20:00-05:00",
+    updatedAt: "2026-06-09T20:12:00-05:00",
+    nextAction: "Hold as backup; ask if July 1 is possible.",
+    mainRisk: "Layout is awkward.",
+    moveInFit: "Late by 11 days",
+    riskLevel: "medium",
+    updatedAtLabel: "Yesterday",
+  },
+  {
+    id: "williamsburg-loft-stretch",
+    sourceName: "StreetEasy context",
+    sourceUrl: "https://example.com/williamsburg-loft-stretch",
+    rawText: "Williamsburg loft alcove, $4,100, roof deck, gym, no fee, July 1. Near Bedford L.",
+    title: "No-fee alcove loft near Bedford L",
+    address: "128 North 7th Street, Brooklyn, NY",
+    unit: "5D",
+    neighborhood: "Williamsburg",
+    borough: "Brooklyn",
+    rentMonthly: 4100,
+    netEffectiveRent: null,
+    bedrooms: 1,
+    bathrooms: 1,
+    squareFeet: 590,
+    availableDate: "2026-07-01",
+    contactName: "Ari Chen",
+    contactEmail: "ari@north7.example",
+    contactPhone: "(929) 555-0137",
+    status: "new",
+    amenities: ["roof deck", "gym", "no fee", "doorman"],
+    fees: ["no fee"],
+    redFlags: ["rent exceeds budget tolerance", "small square footage"],
+    openQuestions: ["Is there any concession?", "Can rent be negotiated below $3,950?"],
+    personalNotes: "Tempting but the math is bad. Only revive if rent drops.",
+    createdAt: "2026-06-10T09:28:00-05:00",
+    updatedAt: "2026-06-10T09:31:00-05:00",
+    nextAction: "Ask for concession; kill if rent is firm.",
+    mainRisk: "Over budget after tolerance.",
+    moveInFit: "July 1 works",
+    riskLevel: "high",
+    updatedAtLabel: "1 hr ago",
+  },
+  {
+    id: "bushwick-basement",
+    sourceName: "Broker email",
+    sourceUrl: null,
+    rawText: "Bushwick garden level studio, $2,700, immediate move-in, cash deposit preferred, photos available later.",
+    title: "Garden-level studio near Myrtle Wyckoff",
+    address: "Address withheld until showing",
+    unit: null,
+    neighborhood: "Bushwick",
+    borough: "Brooklyn",
+    rentMonthly: 2700,
+    netEffectiveRent: null,
+    bedrooms: 0,
+    bathrooms: 1,
+    squareFeet: null,
+    availableDate: "2026-06-12",
+    contactName: "Unknown broker",
+    contactEmail: "fastkeys@example.invalid",
+    contactPhone: null,
+    status: "dead",
+    amenities: ["immediate move-in"],
+    fees: ["cash deposit requested"],
+    redFlags: ["address withheld", "cash deposit pressure", "basement-like language"],
+    openQuestions: ["Is this legal occupancy?", "Why are photos not available?"],
+    personalNotes: "Killed. Too many obvious risk signals.",
+    createdAt: "2026-06-09T13:05:00-05:00",
+    updatedAt: "2026-06-10T08:05:00-05:00",
+    nextAction: "No action.",
+    mainRisk: "Cash pressure and missing address.",
+    moveInFit: "Immediate",
+    riskLevel: "high",
+    updatedAtLabel: "2 hr ago",
+  },
+];
+
+export const evaluations: ListingEvaluation[] = [
+  {
+    id: "eval-fort-greene-garden",
+    listingId: "fort-greene-garden",
+    eligible: true,
+    totalScore: 91,
+    scoreBreakdown: {
+      location: 29,
+      price: 23,
+      apartmentFit: 14,
+      moveInFit: 10,
+      risk: 7,
+      responsiveness: 4,
+      subjectivePull: 4,
+    },
+    hardFilters: [],
+    summary: "Best live target: right neighborhood, strong layout, and workable timing.",
+    strengths: ["Preferred neighborhood", "Laundry and dishwasher", "Move-in date fits", "Responsive broker"],
+    risks: ["Owner-paid fee needs written confirmation"],
+    openQuestions: ["Exact fee responsibility", "Same-day application process"],
+    confidence: "high",
+    evaluatedAt: "2026-06-10T10:18:00-05:00",
+  },
+  {
+    id: "eval-uws-riverside-prewar",
+    listingId: "uws-riverside-prewar",
+    eligible: true,
+    totalScore: 88,
+    scoreBreakdown: {
+      location: 25,
+      price: 25,
+      apartmentFit: 13,
+      moveInFit: 9,
+      risk: 9,
+      responsiveness: 4,
+      subjectivePull: 3,
+    },
+    hardFilters: [],
+    summary: "Boring in the best way: stable building profile and clean budget fit.",
+    strengths: ["Below budget", "Elevator", "Laundry", "Low fee risk"],
+    risks: ["Kitchen details unknown", "Less exciting neighborhood fit"],
+    openQuestions: ["Dishwasher", "Street noise"],
+    confidence: "medium",
+    evaluatedAt: "2026-06-10T09:52:00-05:00",
+  },
+  {
+    id: "eval-crown-heights-renovated",
+    listingId: "crown-heights-renovated",
+    eligible: true,
+    totalScore: 82,
+    scoreBreakdown: {
+      location: 23,
+      price: 24,
+      apartmentFit: 14,
+      moveInFit: 9,
+      risk: 5,
+      responsiveness: 4,
+      subjectivePull: 3,
+    },
+    hardFilters: [],
+    summary: "Worth touring, but fee clarity decides whether it stays alive.",
+    strengths: ["Renovated kitchen", "Large enough", "Tour already scheduled", "Under budget"],
+    risks: ["Tenant-paid fee may be unresolved", "Laundry uncertainty"],
+    openQuestions: ["Total move-in cash", "Laundry location"],
+    confidence: "medium",
+    evaluatedAt: "2026-06-10T10:04:00-05:00",
+  },
+  {
+    id: "eval-prospect-heights-townhouse",
+    listingId: "prospect-heights-townhouse",
+    eligible: true,
+    totalScore: 86,
+    scoreBreakdown: {
+      location: 30,
+      price: 21,
+      apartmentFit: 13,
+      moveInFit: 10,
+      risk: 6,
+      responsiveness: 3,
+      subjectivePull: 3,
+    },
+    hardFilters: [],
+    summary: "Strong applied candidate with excellent move-in fit and neighborhood match.",
+    strengths: ["Preferred neighborhood", "Target move-in date", "Townhouse character", "Application already started"],
+    risks: ["Competing applications", "Pet policy uncertainty"],
+    openQuestions: ["Application queue", "Heat inclusion"],
+    confidence: "high",
+    evaluatedAt: "2026-06-10T08:26:00-05:00",
+  },
+  {
+    id: "eval-astoria-sunny-railroad",
+    listingId: "astoria-sunny-railroad",
+    eligible: true,
+    totalScore: 78,
+    scoreBreakdown: {
+      location: 20,
+      price: 25,
+      apartmentFit: 10,
+      moveInFit: 6,
+      risk: 8,
+      responsiveness: 5,
+      subjectivePull: 4,
+    },
+    hardFilters: [],
+    summary: "Good price and light, but it reads as a backup because layout and timing lag.",
+    strengths: ["Well under budget", "Good light", "Transit access", "Heat included"],
+    risks: ["Railroad layout", "Late availability", "Broker fee"],
+    openQuestions: ["Earlier move-in", "Bedroom separation"],
+    confidence: "medium",
+    evaluatedAt: "2026-06-09T20:12:00-05:00",
+  },
+  {
+    id: "eval-williamsburg-loft-stretch",
+    listingId: "williamsburg-loft-stretch",
+    eligible: false,
+    totalScore: 69,
+    scoreBreakdown: {
+      location: 22,
+      price: 12,
+      apartmentFit: 10,
+      moveInFit: 9,
+      risk: 8,
+      responsiveness: 4,
+      subjectivePull: 4,
+    },
+    hardFilters: ["Rent exceeds max budget plus tolerance."],
+    summary: "Attractive but mathematically wrong unless the rent comes down.",
+    strengths: ["No fee", "Amenities", "Strong transit"],
+    risks: ["Over budget", "Small apartment", "High demand neighborhood"],
+    openQuestions: ["Concession availability", "Rent negotiation"],
+    confidence: "high",
+    evaluatedAt: "2026-06-10T09:31:00-05:00",
+  },
+  {
+    id: "eval-bushwick-basement",
+    listingId: "bushwick-basement",
+    eligible: false,
+    totalScore: 41,
+    scoreBreakdown: {
+      location: 14,
+      price: 24,
+      apartmentFit: 3,
+      moveInFit: 8,
+      risk: 0,
+      responsiveness: 1,
+      subjectivePull: 1,
+    },
+    hardFilters: ["Address is missing after parse.", "Scam language is obvious."],
+    summary: "Killed correctly. It compresses risk into every sentence.",
+    strengths: ["Cheap", "Immediate move-in"],
+    risks: ["Cash pressure", "Withheld address", "Basement-like listing", "No photos"],
+    openQuestions: ["Legal occupancy", "Real address"],
+    confidence: "high",
+    evaluatedAt: "2026-06-10T08:05:00-05:00",
+  },
+];
+
+export const tours: Tour[] = [
+  {
+    id: "tour-crown-heights-renovated",
+    listingId: "crown-heights-renovated",
+    startsAt: "2026-06-10T18:30:00-05:00",
+    endsAt: "2026-06-10T19:00:00-05:00",
+    notes: "Verify bedroom size, laundry, hallway smell, and total move-in cash before getting attached.",
+    verdict: "unknown",
+    checklist: {
+      Noise: false,
+      Light: false,
+      Smell: false,
+      "Water pressure": false,
+      "Heat or air conditioning": false,
+      "Cell signal": false,
+      Laundry: false,
+      "Trash area": false,
+      "Package area": false,
+      "Street feel": false,
+      "Building condition": false,
+      "Stairs or elevator": false,
+      "Broker answers": false,
+    },
+    createdAt: "2026-06-10T10:04:00-05:00",
+    updatedAt: "2026-06-10T10:04:00-05:00",
+  },
+  {
+    id: "tour-astoria-sunny-railroad",
+    listingId: "astoria-sunny-railroad",
+    startsAt: "2026-06-09T18:00:00-05:00",
+    endsAt: "2026-06-09T18:25:00-05:00",
+    notes: "Nice light. Railroad layout worse than photos. Keep as backup only.",
+    verdict: "maybe",
+    checklist: {
+      Noise: true,
+      Light: true,
+      Smell: true,
+      "Water pressure": true,
+      "Heat or air conditioning": false,
+      "Cell signal": true,
+      Laundry: false,
+      "Trash area": true,
+      "Package area": false,
+      "Street feel": true,
+      "Building condition": true,
+      "Stairs or elevator": true,
+      "Broker answers": true,
+    },
+    createdAt: "2026-06-09T17:18:00-05:00",
+    updatedAt: "2026-06-09T20:12:00-05:00",
+  },
+];
+
+export const applicationReadiness: ApplicationReadinessItem[] = [
+  { id: "photo-id", label: "Photo identification ready", ready: true, blocking: false },
+  { id: "employment-letter", label: "Employment letter ready", ready: true, blocking: false },
+  { id: "pay-stubs", label: "Recent pay stubs ready", ready: true, blocking: false },
+  { id: "bank-statements", label: "Bank statements ready", ready: false, blocking: true },
+  { id: "landlord-reference", label: "Landlord reference ready", ready: false, blocking: true },
+  { id: "credit-report", label: "Credit screenshot or report ready", ready: true, blocking: false },
+  { id: "guarantor-docs", label: "Guarantor documents ready, if needed", ready: false, blocking: false },
+  { id: "pet-docs", label: "Pet documents ready, if needed", ready: true, blocking: false },
+];
+
+export const dailyBrief: DailyBrief = {
+  generatedAt: "2026-06-10T10:30:00-05:00",
+  bestCandidates: [
+    "Fort Greene is the best immediate target if the owner-paid fee is confirmed.",
+    "Prospect Heights is already applied; landlord reference is the only real blocker.",
+    "Upper West Side is the cleanest low-drama follow-up.",
+  ],
+  followUps: ["Send UWS tour windows.", "Ask Williamsburg for a concession before killing it."],
+  upcomingTours: ["Crown Heights at 6:30 PM: decide by fee clarity and bedroom quality."],
+  deadOrRiskyListings: ["Bushwick basement stays dead.", "Williamsburg is ineligible at the current rent."],
+  applicationReadinessGaps: ["Bank statements", "Landlord reference"],
+  recommendedNextActions: [
+    "Contact Fort Greene before lunch.",
+    "Finish the landlord reference for Prospect Heights.",
+    "Tour Crown Heights tonight with the fee question first.",
+  ],
+};
+
+export const outreachMessages: OutreachMessage[] = [
+  {
+    id: "outreach-fort-greene-first",
+    listingId: "fort-greene-garden",
+    kind: "first_contact",
+    approved: false,
+    sentAt: null,
+    createdAt: "2026-06-10T10:18:00-05:00",
+    body:
+      "Hi Maya, I am interested in the Adelphi Street 1BR. Could you confirm in writing whether the broker fee is fully owner-paid, and let me know the earliest available tour time today or tomorrow?",
+  },
+  {
+    id: "outreach-uws-follow-up",
+    listingId: "uws-riverside-prewar",
+    kind: "follow_up",
+    approved: false,
+    sentAt: null,
+    createdAt: "2026-06-10T09:52:00-05:00",
+    body:
+      "Hi Daniel, following up on the West 96th Street apartment. I can tour today after 5:30 PM or tomorrow morning. Also, could you confirm whether the kitchen has a dishwasher?",
+  },
+  {
+    id: "outreach-crown-fee",
+    listingId: "crown-heights-renovated",
+    kind: "fee_clarification",
+    approved: false,
+    sentAt: null,
+    createdAt: "2026-06-10T10:04:00-05:00",
+    body:
+      "Hi Nina, before the open house, can you confirm the total move-in cash and whether any broker fee is tenant-paid? I am ready to move quickly if the numbers are clear.",
+  },
+];
+
+export function getEvaluation(listingId: string) {
+  return evaluations.find((evaluation) => evaluation.listingId === listingId);
+}
+
+export function getListingBundle(listingId: string) {
+  const listing = listings.find((candidate) => candidate.id === listingId);
+  const evaluation = listing ? getEvaluation(listing.id) : undefined;
+
+  if (!listing || !evaluation) {
+    return null;
+  }
+
+  return { listing, evaluation };
+}
+
+export function getTopCandidates(limit = 4) {
+  return listings
+    .map((listing) => ({ listing, evaluation: getEvaluation(listing.id) }))
+    .filter((bundle): bundle is { listing: DemoListing; evaluation: ListingEvaluation } => Boolean(bundle.evaluation))
+    .filter((bundle) => bundle.listing.status !== "dead" && bundle.listing.status !== "leased")
+    .sort((left, right) => {
+      if (left.evaluation.eligible !== right.evaluation.eligible) {
+        return Number(right.evaluation.eligible) - Number(left.evaluation.eligible);
+      }
+
+      return right.evaluation.totalScore - left.evaluation.totalScore;
+    })
+    .slice(0, limit);
+}
+
+export function getNeedsOutreach() {
+  return listings.filter((listing) => listing.status === "new" && listing.id !== "williamsburg-loft-stretch");
+}
+
+export function getNeedsFollowUp() {
+  return listings.filter((listing) => listing.status === "contacted");
+}
+
+export function getRecentlyKilled() {
+  return listings.filter((listing) => listing.status === "dead");
+}
+
+export function getToursWithListings() {
+  return tours
+    .map((tour) => ({
+      tour,
+      listing: listings.find((candidate) => candidate.id === tour.listingId),
+    }))
+    .filter((bundle): bundle is { tour: Tour; listing: DemoListing } => Boolean(bundle.listing));
+}
+
+export function getBoardColumns() {
+  return listingStatuses.map((status) => ({
+    status,
+    label: statusLabels[status],
+    listings: listings.filter((listing) => listing.status === status),
+  }));
+}
+
+export function getOutreachForListing(listingId: string) {
+  return outreachMessages.filter((message) => message.listingId === listingId);
+}
