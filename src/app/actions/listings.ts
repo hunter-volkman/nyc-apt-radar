@@ -10,6 +10,7 @@ export async function createListingFromReview(formData: FormData) {
     sourceUrl: readFormString(formData, "sourceUrl"),
     rawText: buildRawText(formData),
     title: readFormString(formData, "title") ?? "Untitled listing",
+    address: readFormString(formData, "address"),
     neighborhood: readFormString(formData, "neighborhood"),
     borough: readFormString(formData, "borough"),
     rentMonthly: readFormNumber(formData, "rentMonthly"),

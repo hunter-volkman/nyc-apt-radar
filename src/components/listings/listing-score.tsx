@@ -1,15 +1,6 @@
 import { GlassPanel } from "@/components/glass/glass-panel";
+import { scoringWeights } from "@/lib/scoring";
 import type { ListingEvaluation } from "@/lib/types";
-
-const scoreMaximums: Record<keyof ListingEvaluation["scoreBreakdown"], number> = {
-  location: 30,
-  price: 25,
-  apartmentFit: 15,
-  moveInFit: 10,
-  risk: 10,
-  responsiveness: 5,
-  subjectivePull: 5,
-};
 
 const scoreLabels: Record<keyof ListingEvaluation["scoreBreakdown"], string> = {
   location: "Location and commute",
@@ -28,6 +19,9 @@ export function ListingScore({ evaluation }: { evaluation: ListingEvaluation }) 
         <div>
           <p className="fine-label">Score</p>
           <h2 className="mt-2 text-2xl font-black text-white">{evaluation.totalScore}/100</h2>
+          <p className="mt-2 text-sm font-semibold text-white/64">
+            {evaluation.eligible ? "Eligible" : "Ineligible"} - {evaluation.confidence} confidence
+          </p>
         </div>
         <span className={evaluation.eligible ? "score-chip" : "score-chip score-chip-muted"}>{evaluation.totalScore}</span>
       </div>
@@ -35,7 +29,7 @@ export function ListingScore({ evaluation }: { evaluation: ListingEvaluation }) 
       <div className="grid gap-3">
         {Object.entries(evaluation.scoreBreakdown).map(([key, value]) => {
           const typedKey = key as keyof ListingEvaluation["scoreBreakdown"];
-          const max = scoreMaximums[typedKey];
+          const max = scoringWeights[typedKey];
           const percent = `${Math.round((value / max) * 100)}%`;
 
           return (

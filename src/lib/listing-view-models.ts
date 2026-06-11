@@ -1,10 +1,10 @@
 import {
-  evaluations,
   listings as demoListings,
   searchProfile,
   tours,
 } from "@/lib/demo-data";
 import { getListing, listListings } from "@/lib/listing-repository";
+import { scoreListing } from "@/lib/scoring";
 import {
   listingStatuses,
   statusLabels,
@@ -23,7 +23,6 @@ export type ListingBundle = {
 };
 
 const demoListingById = new Map(demoListings.map((listing) => [listing.id, listing]));
-const evaluationByListingId = new Map(evaluations.map((evaluation) => [evaluation.listingId, evaluation]));
 
 export function getAllListingBundles(): ListingBundle[] {
   return listListings().map(toListingBundle);
@@ -87,59 +86,30 @@ export function getToursWithListings() {
 }
 
 function toListingBundle(listing: Listing): ListingBundle {
+  const evaluation = scoreListing(listing, searchProfile);
+
   return {
-    listing: toDemoListing(listing),
-    evaluation: getEvaluationForListing(listing),
+    listing: toDemoListing(listing, evaluation),
+    evaluation,
   };
 }
 
-function toDemoListing(listing: Listing): DemoListing {
+function toDemoListing(listing: Listing, evaluation: ListingEvaluation): DemoListing {
   const demoListing = demoListingById.get(listing.id);
 
   return {
     ...listing,
     nextAction: demoListing?.nextAction ?? deriveNextAction(listing.status),
-    mainRisk: demoListing?.mainRisk ?? deriveMainRisk(listing),
+    mainRisk: deriveMainRisk(evaluation),
     moveInFit: demoListing?.moveInFit ?? deriveMoveInFit(listing.availableDate),
-    riskLevel: demoListing?.riskLevel ?? deriveRiskLevel(listing),
+    riskLevel: deriveRiskLevel(evaluation),
     updatedAtLabel: formatUpdatedAtLabel(listing.updatedAt),
-  };
-}
-
-function getEvaluationForListing(listing: Listing): ListingEvaluation {
-  const demoEvaluation = evaluationByListingId.get(listing.id);
-
-  if (demoEvaluation) {
-    return demoEvaluation;
-  }
-
-  return {
-    id: `eval-unscored-${listing.id}`,
-    listingId: listing.id,
-    eligible: false,
-    totalScore: 0,
-    scoreBreakdown: {
-      location: 0,
-      price: 0,
-      apartmentFit: 0,
-      moveInFit: 0,
-      risk: 0,
-      responsiveness: 0,
-      subjectivePull: 0,
-    },
-    hardFilters: ["Not scored yet."],
-    summary: "Saved from Inbox review. Final scoring still belongs to the scoring thread.",
-    strengths: listing.amenities.length ? listing.amenities : ["Captured locally"],
-    risks: listing.redFlags.length ? listing.redFlags : ["Needs scoring review"],
-    openQuestions: listing.openQuestions.length ? listing.openQuestions : ["Run the scoring workflow once it exists."],
-    confidence: "low",
-    evaluatedAt: listing.updatedAt,
   };
 }
 
 function deriveNextAction(status: ListingStatus) {
   const actions: Record<ListingStatus, string> = {
-    new: "Review fields, score manually, then decide whether to contact.",
+    new: "Review score, resolve blockers, then decide whether to contact.",
     contacted: "Follow up with specific tour windows.",
     tour_scheduled: "Tour and verify the unresolved questions.",
     toured: "Record verdict and decide whether to apply.",
@@ -151,16 +121,16 @@ function deriveNextAction(status: ListingStatus) {
   return actions[status];
 }
 
-function deriveMainRisk(listing: Listing) {
-  return listing.redFlags[0] ?? listing.fees[0] ?? "Not scored yet.";
+function deriveMainRisk(evaluation: ListingEvaluation) {
+  return evaluation.hardFilters[0] ?? evaluation.risks[0] ?? "No major risk captured yet";
 }
 
-function deriveRiskLevel(listing: Listing): RiskLevel {
-  if (listing.redFlags.length >= 2) {
+function deriveRiskLevel(evaluation: ListingEvaluation): RiskLevel {
+  if (!evaluation.eligible || evaluation.scoreBreakdown.risk <= 3) {
     return "high";
   }
 
-  if (listing.redFlags.length || listing.fees.some((fee) => fee.toLowerCase().includes("broker"))) {
+  if (evaluation.scoreBreakdown.risk <= 7) {
     return "medium";
   }
 
