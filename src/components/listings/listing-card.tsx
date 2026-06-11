@@ -1,7 +1,18 @@
 import Link from "next/link";
-import { GlassPanel } from "@/components/glass/glass-panel";
-import { StatusPill } from "@/components/glass/status-pill";
-import { cn } from "@/lib/cn";
+import {
+  EligibilityBadge,
+  RiskBadge,
+  ScoreTile,
+  StatusBadge,
+} from "@/components/listings/listing-badges";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { formatDateLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import type { DemoListing, ListingEvaluation } from "@/lib/types";
@@ -16,55 +27,51 @@ export function ListingCard({
   compact?: boolean;
 }) {
   return (
-    <GlassPanel as="article" className={cn("h-full p-4", compact ? "rounded-[22px]" : "rounded-[26px]")}>
-      <div className="flex h-full flex-col gap-4">
-        <div className="flex items-start gap-4">
-          <div className={cn("score-chip", !evaluation.eligible && "score-chip-muted")}>
-            {evaluation.totalScore}
-          </div>
+    <Card className={cn("h-full rounded-lg shadow-sm", compact && "text-sm")} role="article">
+      <CardHeader className="gap-3">
+        <div className="flex items-start gap-3">
+          <ScoreTile compact={compact} eligible={evaluation.eligible} score={evaluation.totalScore} />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusPill status={listing.status} />
-              <span className={cn("risk-pill", `risk-${listing.riskLevel}`)}>{listing.mainRisk}</span>
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <StatusBadge status={listing.status} />
+              <EligibilityBadge eligible={evaluation.eligible} />
             </div>
-            <Link className="mt-3 block text-lg font-black leading-6 text-white hover:text-[var(--stoop-jade)]" href={`/listings/${listing.id}`}>
-              {listing.title}
-            </Link>
-            <p className="mt-1 text-sm leading-5 text-white/62">
-              {listing.neighborhood}, {listing.borough}
+            <CardTitle className="text-base font-semibold leading-6">
+              <Link className="hover:underline" href={`/listings/${listing.id}`}>
+                {listing.title}
+              </Link>
+            </CardTitle>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {formatMoney(listing.rentMonthly)} · {listing.neighborhood ?? "Neighborhood unknown"}
+            </p>
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {listing.address ?? "Address missing"}
             </p>
           </div>
         </div>
+      </CardHeader>
 
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <Fact label="Rent" value={formatMoney(listing.rentMonthly)} />
-          <Fact label="Eligibility" value={evaluation.eligible ? "Eligible" : "Ineligible"} tone={evaluation.eligible ? "good" : "bad"} />
+      <CardContent className="flex flex-1 flex-col gap-3">
+        <div className="grid grid-cols-2 gap-2">
           <Fact label="Move-in" value={listing.moveInFit} />
           <Fact label="Available" value={formatDateLabel(listing.availableDate)} />
         </div>
-
-        <div className="mt-auto rounded-2xl border border-white/10 bg-black/18 p-3">
-          <p className="fine-label">Next action</p>
-          <p className="mt-2 text-sm leading-5 text-white/82">{listing.nextAction}</p>
+        <RiskBadge risk={listing.riskLevel}>{listing.mainRisk}</RiskBadge>
+        <Separator />
+        <div className="mt-auto">
+          <p className="stoop-label">Next action</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-foreground">{listing.nextAction}</p>
         </div>
-      </div>
-    </GlassPanel>
+      </CardContent>
+    </Card>
   );
 }
 
-function Fact({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3">
-      <p className="fine-label">{label}</p>
-      <p
-        className={cn(
-          "mt-2 text-sm font-bold leading-5 text-white",
-          tone === "good" && "text-[var(--stoop-green)]",
-          tone === "bad" && "text-[var(--stoop-coral)]",
-        )}
-      >
-        {value}
-      </p>
+    <div className="rounded-md border bg-muted/35 px-3 py-2">
+      <p className="stoop-label">{label}</p>
+      <p className="mt-1 text-sm font-semibold leading-5 text-foreground">{value}</p>
     </div>
   );
 }

@@ -1,24 +1,29 @@
-import { GlassPanel } from "@/components/glass/glass-panel";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { DailyBrief } from "@/lib/types";
 
 export function DailyBriefing({ brief }: { brief: DailyBrief }) {
   return (
-    <GlassPanel variant="strong" className="grid gap-5">
-      <div>
-        <p className="fine-label">Daily briefing</p>
-        <h2 className="mt-2 text-2xl font-black text-white">Three moves matter today</h2>
-      </div>
+    <Card className="rounded-lg shadow-sm">
+      <CardHeader>
+        <p className="stoop-label">Daily briefing</p>
+        <CardTitle className="text-lg font-semibold">Three moves matter today</CardTitle>
+      </CardHeader>
 
-      <div className="grid gap-3">
+      <CardContent className="grid gap-2">
         {brief.recommendedNextActions.map((action, index) => (
-          <div className="flex gap-3 rounded-2xl border border-white/10 bg-black/18 p-4" key={action}>
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--stoop-jade)] text-sm font-black text-black">
+          <div className="flex gap-3 rounded-md border bg-muted/35 p-3" key={action}>
+            <span className="stoop-on-primary grid size-7 shrink-0 place-items-center rounded-md bg-primary text-sm font-semibold">
               {index + 1}
             </span>
-            <p className="text-sm font-semibold leading-6 text-white/84">{action}</p>
+            <p className="text-sm font-medium leading-6">{action}</p>
           </div>
         ))}
-      </div>
-    </GlassPanel>
+      </CardContent>
+    </Card>
   );
 }

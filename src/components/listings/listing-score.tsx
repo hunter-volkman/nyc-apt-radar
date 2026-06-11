@@ -1,4 +1,11 @@
-import { GlassPanel } from "@/components/glass/glass-panel";
+import { ScoreTile } from "@/components/listings/listing-badges";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { scoringWeights } from "@/lib/scoring";
 import type { ListingEvaluation } from "@/lib/types";
 
@@ -14,39 +21,41 @@ const scoreLabels: Record<keyof ListingEvaluation["scoreBreakdown"], string> = {
 
 export function ListingScore({ evaluation }: { evaluation: ListingEvaluation }) {
   return (
-    <GlassPanel className="grid gap-5">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="fine-label">Score</p>
-          <h2 className="mt-2 text-2xl font-black text-white">{evaluation.totalScore}/100</h2>
-          <p className="mt-2 text-sm font-semibold text-white/64">
-            {evaluation.eligible ? "Eligible" : "Ineligible"} - {evaluation.confidence} confidence
-          </p>
+    <Card className="rounded-lg shadow-sm">
+      <CardHeader className="gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="stoop-label">Score</p>
+            <CardTitle className="mt-1 text-lg font-semibold">
+              {evaluation.totalScore}/100
+            </CardTitle>
+            <p className="mt-1 text-sm font-medium text-muted-foreground">
+              {evaluation.eligible ? "Eligible" : "Ineligible"} · {evaluation.confidence} confidence
+            </p>
+          </div>
+          <ScoreTile eligible={evaluation.eligible} score={evaluation.totalScore} />
         </div>
-        <span className={evaluation.eligible ? "score-chip" : "score-chip score-chip-muted"}>{evaluation.totalScore}</span>
-      </div>
+      </CardHeader>
 
-      <div className="grid gap-3">
+      <CardContent className="grid gap-3">
         {Object.entries(evaluation.scoreBreakdown).map(([key, value]) => {
           const typedKey = key as keyof ListingEvaluation["scoreBreakdown"];
           const max = scoringWeights[typedKey];
-          const percent = `${Math.round((value / max) * 100)}%`;
+          const percent = Math.round((value / max) * 100);
 
           return (
             <div key={key}>
-              <div className="mb-2 flex items-center justify-between gap-4 text-sm">
-                <span className="font-semibold text-white/78">{scoreLabels[typedKey]}</span>
-                <span className="font-bold text-white">
+              <div className="mb-1.5 flex items-center justify-between gap-4 text-sm">
+                <span className="font-medium text-muted-foreground">{scoreLabels[typedKey]}</span>
+                <span className="font-semibold">
                   {value}/{max}
                 </span>
               </div>
-              <div className="h-2 rounded-full bg-white/10">
-                <div className="h-full rounded-full bg-[var(--stoop-jade)]" style={{ width: percent }} />
-              </div>
+              <Progress value={percent} />
             </div>
           );
         })}
-      </div>
-    </GlassPanel>
+      </CardContent>
+    </Card>
   );
 }

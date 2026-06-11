@@ -1,14 +1,28 @@
+import { ArrowLeft, Inbox } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { updateListingStatusFromForm } from "@/app/actions/listings";
-import { GlassButton } from "@/components/glass/glass-button";
-import { GlassPanel } from "@/components/glass/glass-panel";
-import { GlassShell } from "@/components/glass/glass-shell";
-import { StatusPill } from "@/components/glass/status-pill";
+import { AppShell } from "@/components/layout/app-shell";
+import {
+  EligibilityBadge,
+  RiskBadge,
+  ScoreTile,
+  StatusBadge,
+} from "@/components/listings/listing-badges";
 import { ListingRiskPanel } from "@/components/listings/listing-risk-panel";
 import { ListingScore } from "@/components/listings/listing-score";
 import { TourChecklist } from "@/components/tours/tour-checklist";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { getOutreachForListing } from "@/lib/demo-data";
 import { getListingBundle, getToursWithListings } from "@/lib/listing-view-models";
 import { formatDateLabel } from "@/lib/dates";
@@ -30,77 +44,82 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const outreachMessages = getOutreachForListing(listing.id);
 
   return (
-    <GlassShell
+    <AppShell
       active="board"
       eyebrow="Listing Detail"
       title={listing.title}
-      subtitle={`${listing.neighborhood}, ${listing.borough} - ${formatMoney(listing.rentMonthly)} - ${listing.moveInFit}`}
+      subtitle={`${listing.neighborhood}, ${listing.borough} · ${formatMoney(listing.rentMonthly)} · ${listing.address ?? "Address missing"}`}
       action={
         <>
-          <GlassButton href="/board">Board</GlassButton>
-          <GlassButton href="/inbox" variant="primary">Capture Listing</GlassButton>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/board">
+              <ArrowLeft />
+              Board
+            </Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/inbox">
+              <Inbox />
+              Capture
+            </Link>
+          </Button>
         </>
       }
     >
-      <div className="grid gap-5 lg:grid-cols-[0.78fr_0.42fr]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="grid gap-5">
-          <GlassPanel variant="strong" className="grid gap-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusPill status={listing.status} />
-                  <span className={evaluation.eligible ? "risk-pill risk-low" : "risk-pill risk-high"}>
-                    {evaluation.eligible ? "Eligible" : "Ineligible"}
-                  </span>
-                  <span className={`risk-pill risk-${listing.riskLevel}`}>{listing.mainRisk}</span>
+          <Card className="rounded-lg border-primary/20 shadow-sm">
+            <CardContent className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[auto_1fr]">
+              <ScoreTile eligible={evaluation.eligible} score={evaluation.totalScore} />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <StatusBadge status={listing.status} />
+                  <EligibilityBadge eligible={evaluation.eligible} />
+                  <RiskBadge risk={listing.riskLevel}>{listing.mainRisk}</RiskBadge>
                 </div>
-                <h2 className="mt-4 text-2xl font-black text-white">Decision summary</h2>
-                <p className="mt-2 max-w-3xl text-base leading-7 text-white/74">{evaluation.summary}</p>
-              </div>
-              <span className={evaluation.eligible ? "score-chip" : "score-chip score-chip-muted"}>{evaluation.totalScore}</span>
-            </div>
+                <h2 className="mt-3 text-xl font-semibold">Decision summary</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                  {evaluation.summary}
+                </p>
 
-            <div className="grid gap-3 sm:grid-cols-4">
-              <DetailMetric label="Rent" value={formatMoney(listing.rentMonthly)} />
-              <DetailMetric label="Available" value={formatDateLabel(listing.availableDate)} />
-              <DetailMetric label="Beds" value={String(listing.bedrooms ?? "Unknown")} />
-              <DetailMetric label="Updated" value={listing.updatedAtLabel} />
-            </div>
-          </GlassPanel>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <DetailMetric label="Rent" value={formatMoney(listing.rentMonthly)} />
+                  <DetailMetric label="Neighborhood" value={listing.neighborhood ?? "Unknown"} />
+                  <DetailMetric label="Address" value={listing.address ?? "Missing"} />
+                  <DetailMetric label="Available" value={formatDateLabel(listing.availableDate)} />
+                  <DetailMetric label="Beds" value={String(listing.bedrooms ?? "Unknown")} />
+                  <DetailMetric label="Baths" value={String(listing.bathrooms ?? "Unknown")} />
+                  <DetailMetric label="Move-in" value={listing.moveInFit} />
+                  <DetailMetric label="Updated" value={listing.updatedAtLabel} />
+                </div>
+
+                <Separator className="my-4" />
+                <p className="stoop-label">Next action</p>
+                <p className="mt-1 text-sm font-medium leading-6">{listing.nextAction}</p>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-5 xl:grid-cols-2">
             <ListPanel title="Strengths" items={evaluation.strengths} />
-            <ListPanel title="Risks" items={evaluation.risks} />
+            <ListPanel title="Risks" items={evaluation.risks} tone="risk" />
             <ListPanel title="Hard filters" items={evaluation.hardFilters.length ? evaluation.hardFilters : ["None failed"]} />
             <ListPanel title="Open questions" items={evaluation.openQuestions} />
           </div>
 
-          <GlassPanel>
-            <p className="fine-label">Outreach draft</p>
-            <div className="mt-4 grid gap-4">
-              {outreachMessages.length ? (
-                outreachMessages.map((message) => (
-                  <div className="rounded-2xl border border-white/10 bg-black/18 p-4" key={message.id}>
-                    <p className="fine-label">{message.kind.replaceAll("_", " ")}</p>
-                    <p className="mt-3 text-sm leading-6 text-white/78">{message.body}</p>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <GlassButton size="sm" variant="primary">Approve Draft</GlassButton>
-                      <GlassButton size="sm">Edit</GlassButton>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-dashed border-white/12 p-4 text-sm leading-6 text-white/50">
-                  No draft yet
-                </div>
-              )}
-            </div>
-          </GlassPanel>
+          <OutreachDrafts messages={outreachMessages} />
 
-          <GlassPanel>
-            <p className="fine-label">Notes</p>
-            <p className="mt-3 text-sm leading-6 text-white/74">{listing.personalNotes}</p>
-          </GlassPanel>
+          <Card className="rounded-lg shadow-sm">
+            <CardHeader>
+              <p className="stoop-label">Notes</p>
+              <CardTitle className="text-lg font-semibold">Private readout</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm leading-6 text-muted-foreground">
+                {listing.personalNotes ?? "No notes captured."}
+              </p>
+            </CardContent>
+          </Card>
 
           {tours.map(({ tour }) => (
             <TourChecklist key={tour.id} listing={listing} tour={tour} />
@@ -109,46 +128,102 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
         <aside className="grid content-start gap-5">
           <ListingScore evaluation={evaluation} />
+          <DecisionActions listingId={listing.id} />
           <ListingRiskPanel evaluation={evaluation} listing={listing} />
-
-          <GlassPanel>
-            <p className="fine-label">Decision actions</p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <StatusAction listingId={listing.id} status="contacted" variant="primary">Contact</StatusAction>
-              <StatusAction listingId={listing.id} status="contacted">Follow up</StatusAction>
-              <StatusAction listingId={listing.id} status="tour_scheduled">Schedule tour</StatusAction>
-              <StatusAction listingId={listing.id} status="toured">Mark toured</StatusAction>
-              <StatusAction listingId={listing.id} status="applied">Apply</StatusAction>
-              <StatusAction listingId={listing.id} status="dead" variant="danger">Kill</StatusAction>
-            </div>
-          </GlassPanel>
         </aside>
       </div>
-    </GlassShell>
+    </AppShell>
   );
 }
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/18 p-4">
-      <p className="fine-label">{label}</p>
-      <p className="mt-2 text-sm font-black text-white">{value}</p>
+    <div className="rounded-md border bg-muted/35 p-3">
+      <p className="stoop-label">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold leading-5">{value}</p>
     </div>
   );
 }
 
-function ListPanel({ title, items }: { title: string; items: string[] }) {
+function ListPanel({
+  title,
+  items,
+  tone = "default",
+}: {
+  title: string;
+  items: string[];
+  tone?: "default" | "risk";
+}) {
   return (
-    <GlassPanel>
-      <p className="fine-label">{title}</p>
-      <ul className="mt-4 grid gap-3 text-sm leading-6 text-white/76">
-        {items.map((item) => (
-          <li className="rounded-2xl border border-white/10 bg-black/18 p-3" key={item}>
-            {item}
-          </li>
-        ))}
-      </ul>
-    </GlassPanel>
+    <Card className={tone === "risk" ? "rounded-lg border-amber-200 bg-amber-50/50 shadow-sm" : "rounded-lg shadow-sm"}>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="grid gap-2 text-sm leading-6">
+          {items.map((item) => (
+            <li className="rounded-md border bg-card p-3" key={item}>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OutreachDrafts({
+  messages,
+}: {
+  messages: ReturnType<typeof getOutreachForListing>;
+}) {
+  return (
+    <Card className="rounded-lg shadow-sm">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="stoop-label">Outreach draft</p>
+            <CardTitle className="mt-1 text-lg font-semibold">Draft only, never sent automatically</CardTitle>
+          </div>
+          <Badge className="rounded-md" variant="secondary">Stub</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        {messages.length ? (
+          messages.map((message) => (
+            <div className="rounded-md border bg-muted/30 p-3" key={message.id}>
+              <Badge className="rounded-md capitalize" variant="outline">
+                {message.kind.replaceAll("_", " ")}
+              </Badge>
+              <p className="mt-3 text-sm leading-6">{message.body}</p>
+            </div>
+          ))
+        ) : (
+          <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+            No draft yet.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DecisionActions({ listingId }: { listingId: string }) {
+  return (
+    <Card className="rounded-lg shadow-sm">
+      <CardHeader>
+        <p className="stoop-label">Decision actions</p>
+        <CardTitle className="text-lg font-semibold">Set status</CardTitle>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-2">
+        <StatusAction listingId={listingId} status="contacted" variant="primary">Contact</StatusAction>
+        <StatusAction listingId={listingId} status="contacted">Follow up</StatusAction>
+        <StatusAction listingId={listingId} status="tour_scheduled">Schedule tour</StatusAction>
+        <StatusAction listingId={listingId} status="toured">Mark toured</StatusAction>
+        <StatusAction listingId={listingId} status="applied">Apply</StatusAction>
+        <StatusAction listingId={listingId} status="dead" variant="danger">Kill</StatusAction>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -167,7 +242,13 @@ function StatusAction({
     <form action={updateListingStatusFromForm}>
       <input name="id" type="hidden" value={listingId} />
       <input name="status" type="hidden" value={status} />
-      <GlassButton className="w-full justify-center" type="submit" variant={variant}>{children}</GlassButton>
+      <Button
+        className="w-full justify-center"
+        type="submit"
+        variant={variant === "primary" ? "default" : variant === "danger" ? "destructive" : "outline"}
+      >
+        {children}
+      </Button>
     </form>
   );
 }

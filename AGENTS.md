@@ -16,9 +16,9 @@ capture listing -> parse listing -> score listing -> choose next action -> track
 
 Do not add Supabase, authentication, payments, scraping, autonomous browsing, automatic message sending, public broker marketplace features, native mobile work, lease signing, roommate matching, fake live integrations, or sensitive document storage.
 
-## Thread 0 State
+## Current State
 
-The app currently uses typed static demo data. Treat the UI as the contract for later persistence, scoring, parser, outreach, and briefing threads.
+The app uses local SQLite persistence with Drizzle and deterministic listing scoring. Parser, outreach, upload, and draft-storage surfaces are still bounded stubs unless a later thread explicitly implements them.
 
 Preserve these root planning files unless the user explicitly asks to change them:
 
@@ -30,11 +30,14 @@ Preserve these root planning files unless the user explicitly asks to change the
 
 ## Visual Direction
 
-Use the liquid-glass system in `src/styles/glass.css` and `src/components/glass/*`. Keep glass readable: high-contrast text, subtle borders, inner highlights, soft shadows, and no decorative clutter that hides listing facts.
+Use shadcn/ui as the design-system foundation in `src/components/ui/*`. Stoop should feel like a calm, dense, high-quality apartment command center, not a glassmorphism demo or generic SaaS dashboard. Keep rent, neighborhood, address, score, eligibility, status, risk, next action, tour time, and readiness gaps visible.
+
+Avoid giant heroes, marketing composition, decorative glass, animation-heavy UI, cards nested inside cards, and controls that look active but do nothing. Stubbed controls must be disabled or clearly labeled.
 
 ## Engineering Notes
 
 - Keep implementation typed and boring.
 - Prefer existing components and data shapes before inventing new ones.
 - Be honest about stubs and future official-data boundaries.
+- Do not change database schema, scoring rules, parser behavior, outreach behavior, or persistence behavior during visual-only work.
 - Run `npm run build` before handing off meaningful UI changes.

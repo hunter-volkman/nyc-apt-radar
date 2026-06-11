@@ -1,18 +1,20 @@
-# Stoop Liquid-Glass Design System
+# Stoop shadcn/ui Design System
 
-The Thread 0 glass system lives in:
+Stoop now uses shadcn/ui as the component foundation. The interface should feel like a calm, dense apartment command center: fast to scan, hard to misread, and focused on the next decision.
 
-- `src/styles/glass.css`
-- `src/components/glass/glass-panel.tsx`
-- `src/components/glass/glass-button.tsx`
-- `src/components/glass/glass-input.tsx`
-- `src/components/glass/glass-shell.tsx`
-- `src/components/glass/status-pill.tsx`
+Primary files:
 
-Principles:
+- `components.json`
+- `src/components/ui/*`
+- `src/components/layout/app-shell.tsx`
+- `src/components/listings/listing-badges.tsx`
+- `src/app/globals.css`
 
-- Readability beats glass effects.
-- Status, score, rent, next action, and risk stay visible.
-- Glass is a layer over a calm city-grid backdrop, not a decorative gimmick.
-- Use saturated accents sparingly for action, risk, and eligibility.
-- Do not put sensitive document content into the app.
+Core principles:
+
+- Rent, neighborhood, address, score, eligibility, status, risk, next action, tour time, and readiness gaps stay visible.
+- Use shadcn cards, buttons, badges, inputs, textareas, tabs, checkboxes, separators, and progress bars before inventing primitives.
+- Keep cards shallow: do not nest cards inside cards.
+- Favor compact rows, stable columns, and obvious primary actions over hero sections or decorative effects.
+- Stubbed parser, outreach, upload, and draft-storage features must be labeled as stubs or disabled.
+- Preserve local-first boundaries: no scraping, automatic messaging, authentication, payments, or sensitive document storage.
