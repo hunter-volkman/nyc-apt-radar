@@ -1,8 +1,13 @@
+import { connection } from "next/server";
 import { CandidateBoard } from "@/components/board/candidate-board";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassShell } from "@/components/glass/glass-shell";
+import { getBoardColumns } from "@/lib/listing-view-models";
 
-export default function BoardPage() {
+export default async function BoardPage() {
+  await connection();
+  const columns = getBoardColumns();
+
   return (
     <GlassShell
       active="board"
@@ -16,7 +21,7 @@ export default function BoardPage() {
         </>
       }
     >
-      <CandidateBoard />
+      <CandidateBoard columns={columns} />
     </GlassShell>
   );
 }

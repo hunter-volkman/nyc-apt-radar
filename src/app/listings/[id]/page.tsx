@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
+import type { ReactNode } from "react";
+import { updateListingStatusFromForm } from "@/app/actions/listings";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassPanel } from "@/components/glass/glass-panel";
 import { GlassShell } from "@/components/glass/glass-shell";
@@ -6,20 +9,15 @@ import { StatusPill } from "@/components/glass/status-pill";
 import { ListingRiskPanel } from "@/components/listings/listing-risk-panel";
 import { ListingScore } from "@/components/listings/listing-score";
 import { TourChecklist } from "@/components/tours/tour-checklist";
-import {
-  getListingBundle,
-  getOutreachForListing,
-  getToursWithListings,
-  listings,
-} from "@/lib/demo-data";
+import { getOutreachForListing } from "@/lib/demo-data";
+import { getListingBundle, getToursWithListings } from "@/lib/listing-view-models";
 import { formatDateLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-
-export function generateStaticParams() {
-  return listings.map((listing) => ({ id: listing.id }));
-}
+import type { ListingStatus } from "@/lib/types";
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await connection();
+
   const { id } = await params;
   const bundle = getListingBundle(id);
 
@@ -116,12 +114,12 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           <GlassPanel>
             <p className="fine-label">Decision actions</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
-              <GlassButton variant="primary">Contact</GlassButton>
-              <GlassButton>Follow up</GlassButton>
-              <GlassButton>Schedule tour</GlassButton>
-              <GlassButton>Mark toured</GlassButton>
-              <GlassButton>Apply</GlassButton>
-              <GlassButton variant="danger">Kill</GlassButton>
+              <StatusAction listingId={listing.id} status="contacted" variant="primary">Contact</StatusAction>
+              <StatusAction listingId={listing.id} status="contacted">Follow up</StatusAction>
+              <StatusAction listingId={listing.id} status="tour_scheduled">Schedule tour</StatusAction>
+              <StatusAction listingId={listing.id} status="toured">Mark toured</StatusAction>
+              <StatusAction listingId={listing.id} status="applied">Apply</StatusAction>
+              <StatusAction listingId={listing.id} status="dead" variant="danger">Kill</StatusAction>
             </div>
           </GlassPanel>
         </aside>
@@ -151,5 +149,25 @@ function ListPanel({ title, items }: { title: string; items: string[] }) {
         ))}
       </ul>
     </GlassPanel>
+  );
+}
+
+function StatusAction({
+  children,
+  listingId,
+  status,
+  variant = "default",
+}: {
+  children: ReactNode;
+  listingId: string;
+  status: ListingStatus;
+  variant?: "default" | "primary" | "danger";
+}) {
+  return (
+    <form action={updateListingStatusFromForm}>
+      <input name="id" type="hidden" value={listingId} />
+      <input name="status" type="hidden" value={status} />
+      <GlassButton className="w-full justify-center" type="submit" variant={variant}>{children}</GlassButton>
+    </form>
   );
 }

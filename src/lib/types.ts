@@ -1,11 +1,24 @@
-export type ListingStatus =
-  | "new"
-  | "contacted"
-  | "tour_scheduled"
-  | "toured"
-  | "applied"
-  | "dead"
-  | "leased";
+export const listingStatuses = [
+  "new",
+  "contacted",
+  "tour_scheduled",
+  "toured",
+  "applied",
+  "dead",
+  "leased",
+] as const;
+
+export type ListingStatus = (typeof listingStatuses)[number];
+
+export const statusLabels: Record<ListingStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  tour_scheduled: "Tour Scheduled",
+  toured: "Toured",
+  applied: "Applied",
+  dead: "Dead",
+  leased: "Leased",
+};
 
 export type Confidence = "high" | "medium" | "low";
 
