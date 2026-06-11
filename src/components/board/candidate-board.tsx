@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { GlassPanel } from "@/components/glass/glass-panel";
 import { StatusPill } from "@/components/glass/status-pill";
-import { getBoardColumns, getEvaluation } from "@/lib/demo-data";
 import { formatMoney } from "@/lib/money";
+import type { ListingBundle } from "@/lib/listing-view-models";
+import type { ListingStatus } from "@/lib/types";
 
-export function CandidateBoard() {
-  const columns = getBoardColumns();
+type BoardColumn = {
+  status: ListingStatus;
+  label: string;
+  listings: ListingBundle[];
+};
 
+export function CandidateBoard({ columns }: { columns: BoardColumn[] }) {
   return (
     <div className="grid gap-4 xl:grid-cols-7">
       {columns.map((column) => (
@@ -18,9 +23,7 @@ export function CandidateBoard() {
 
           <div className="grid gap-3">
             {column.listings.length ? (
-              column.listings.map((listing) => {
-                const evaluation = getEvaluation(listing.id);
-
+              column.listings.map(({ listing, evaluation }) => {
                 return (
                   <Link
                     className="block rounded-[18px] border border-white/10 bg-black/20 p-3 transition hover:border-white/24 hover:bg-white/[0.07]"
@@ -34,14 +37,14 @@ export function CandidateBoard() {
                           {formatMoney(listing.rentMonthly)} - {listing.neighborhood}
                         </p>
                       </div>
-                      <span className={evaluation?.eligible ? "score-chip !h-11 !w-11 !text-base" : "score-chip score-chip-muted !h-11 !w-11 !text-base"}>
-                        {evaluation?.totalScore ?? "?"}
+                      <span className={evaluation.eligible ? "score-chip !h-11 !w-11 !text-base" : "score-chip score-chip-muted !h-11 !w-11 !text-base"}>
+                        {evaluation.totalScore}
                       </span>
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <StatusPill status={listing.status} />
-                      <span className="risk-pill risk-medium">{evaluation?.eligible ? "Eligible" : "Ineligible"}</span>
+                      <span className="risk-pill risk-medium">{evaluation.eligible ? "Eligible" : "Ineligible"}</span>
                       <span className={`risk-pill risk-${listing.riskLevel}`}>{listing.mainRisk}</span>
                     </div>
 

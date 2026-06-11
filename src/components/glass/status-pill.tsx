@@ -1,6 +1,5 @@
 import { cn } from "@/lib/cn";
-import { statusLabels } from "@/lib/demo-data";
-import type { ListingStatus } from "@/lib/types";
+import { statusLabels, type ListingStatus } from "@/lib/types";
 
 export function StatusPill({ status, className }: { status: ListingStatus; className?: string }) {
   return (

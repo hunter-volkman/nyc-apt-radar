@@ -3,31 +3,13 @@ import type {
   DailyBrief,
   DemoListing,
   ListingEvaluation,
-  ListingStatus,
   OutreachMessage,
   SearchProfile,
   Tour,
 } from "@/lib/types";
+import { listingStatuses, statusLabels } from "@/lib/types";
 
-export const listingStatuses: ListingStatus[] = [
-  "new",
-  "contacted",
-  "tour_scheduled",
-  "toured",
-  "applied",
-  "dead",
-  "leased",
-];
-
-export const statusLabels: Record<ListingStatus, string> = {
-  new: "New",
-  contacted: "Contacted",
-  tour_scheduled: "Tour Scheduled",
-  toured: "Toured",
-  applied: "Applied",
-  dead: "Dead",
-  leased: "Leased",
-};
+export { listingStatuses, statusLabels };
 
 export const searchProfile: SearchProfile = {
   id: "hunter-nyc-2026",

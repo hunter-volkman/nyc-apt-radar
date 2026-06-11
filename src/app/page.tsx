@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { DailyBriefing } from "@/components/briefing/daily-briefing";
 import { GlassButton } from "@/components/glass/glass-button";
 import { GlassPanel } from "@/components/glass/glass-panel";
@@ -6,17 +7,21 @@ import { ListingCard } from "@/components/listings/listing-card";
 import {
   applicationReadiness,
   dailyBrief,
+  searchProfile,
+} from "@/lib/demo-data";
+import {
   getNeedsFollowUp,
   getNeedsOutreach,
   getRecentlyKilled,
   getTopCandidates,
   getToursWithListings,
-  searchProfile,
-} from "@/lib/demo-data";
+} from "@/lib/listing-view-models";
 import { formatDateTimeLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 
-export default function TodayPage() {
+export default async function TodayPage() {
+  await connection();
+
   const topCandidates = getTopCandidates(4);
   const needsOutreach = getNeedsOutreach();
   const needsFollowUp = getNeedsFollowUp();
