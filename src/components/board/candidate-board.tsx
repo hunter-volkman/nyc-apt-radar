@@ -44,7 +44,9 @@ export function CandidateBoard({ columns }: { columns: BoardColumn[] }) {
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <StatusPill status={listing.status} />
-                      <span className="risk-pill risk-medium">{evaluation.eligible ? "Eligible" : "Ineligible"}</span>
+                      <span className={evaluation.eligible ? "risk-pill risk-low" : "risk-pill risk-high"}>
+                        {evaluation.eligible ? "Eligible" : "Ineligible"}
+                      </span>
                       <span className={`risk-pill risk-${listing.riskLevel}`}>{listing.mainRisk}</span>
                     </div>
 

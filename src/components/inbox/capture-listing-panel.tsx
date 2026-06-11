@@ -39,6 +39,7 @@ export function CaptureListingPanel() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <GlassInput label="Title" name="title" defaultValue="Garden-facing 1BR near Lafayette Avenue" />
+          <GlassInput label="Address" name="address" defaultValue="238 Adelphi Street, Brooklyn, NY" />
           <GlassInput label="Rent" name="rentMonthly" defaultValue="$3,650" />
           <GlassInput label="Neighborhood" name="neighborhood" defaultValue="Fort Greene" />
           <GlassInput label="Borough" name="borough" defaultValue="Brooklyn" />
