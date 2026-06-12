@@ -4,13 +4,14 @@ import {
   Inbox,
   LayoutDashboard,
   Plus,
+  Radar,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type ActiveSection = "today" | "inbox" | "board" | "tours";
+type ActiveSection = "radar" | "today" | "inbox" | "board" | "tours";
 
 const navItems: Array<{
   id: ActiveSection;
@@ -18,6 +19,7 @@ const navItems: Array<{
   href: string;
   icon: ReactNode;
 }> = [
+  { id: "radar", label: "Radar", href: "/radar", icon: <Radar /> },
   { id: "today", label: "Today", href: "/", icon: <LayoutDashboard /> },
   { id: "inbox", label: "Inbox", href: "/inbox", icon: <Inbox /> },
   { id: "board", label: "Board", href: "/board", icon: <ClipboardList /> },

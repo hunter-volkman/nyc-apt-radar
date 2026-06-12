@@ -134,6 +134,83 @@ export type ListingView = Listing & {
   updatedAtLabel: string;
 };
 
+export const sourceEventStatuses = ["pending", "processed", "duplicate", "failed"] as const;
+
+export type SourceEventStatus = (typeof sourceEventStatuses)[number];
+
+export const radarClassifications = ["hot", "watch", "needs_review", "rejected"] as const;
+
+export type RadarClassification = (typeof radarClassifications)[number];
+
+export type SourceEvent = {
+  id: string;
+  sourceName: string;
+  sourceUrl: string | null;
+  normalizedSourceUrl: string | null;
+  normalizedFingerprint: string;
+  rawText: string;
+  status: SourceEventStatus;
+  duplicateOfEventId: string | null;
+  listingId: string | null;
+  classification: RadarClassification | null;
+  classificationBlockers: string[];
+  errorMessage: string | null;
+  importedAt: string;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const watchRunTypes = ["one_shot", "watch", "manual_import"] as const;
+
+export type WatchRunType = (typeof watchRunTypes)[number];
+
+export const watchRunStatuses = ["running", "succeeded", "failed"] as const;
+
+export type WatchRunStatus = (typeof watchRunStatuses)[number];
+
+export type WatchRun = {
+  id: string;
+  runType: WatchRunType;
+  status: WatchRunStatus;
+  intervalMinutes: number;
+  startedAt: string;
+  finishedAt: string | null;
+  eventsSeen: number;
+  eventsImported: number;
+  eventsProcessed: number;
+  listingsCreated: number;
+  duplicatesFound: number;
+  notificationsCreated: number;
+  errorMessage: string | null;
+};
+
+export const notificationTypes = ["hot_listing", "needs_review", "watch_failure"] as const;
+
+export type NotificationType = (typeof notificationTypes)[number];
+
+export const notificationChannels = ["local"] as const;
+
+export type NotificationChannel = (typeof notificationChannels)[number];
+
+export const notificationStatuses = ["recorded"] as const;
+
+export type NotificationStatus = (typeof notificationStatuses)[number];
+
+export type Notification = {
+  id: string;
+  sourceEventId: string | null;
+  listingId: string | null;
+  type: NotificationType;
+  channel: NotificationChannel;
+  status: NotificationStatus;
+  title: string;
+  body: string;
+  dedupeKey: string;
+  createdAt: string;
+  recordedAt: string;
+};
+
 export type ApplicationReadinessChecklistItem = {
   id: string;
   label: string;

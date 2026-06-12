@@ -11,7 +11,9 @@
     "db:push": "drizzle-kit push",
     "db:init": "tsx scripts/init-db.ts",
     "db:reset": "tsx scripts/init-db.ts --reset",
-    "db:seed": "tsx scripts/init-db.ts"
+    "db:seed": "tsx scripts/init-db.ts",
+    "radar:run": "tsx scripts/radar-run.ts",
+    "radar:watch": "tsx scripts/radar-watch.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",

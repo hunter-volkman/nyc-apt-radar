@@ -1,8 +1,8 @@
 import type { SearchProfile } from "@/lib/types";
 
 export const searchProfile: SearchProfile = {
-  id: "hunter-nyc-2026",
-  name: "Hunter NYC June search",
+  id: "household-nyc-2026",
+  name: "Household NYC June search",
   targetMoveInDate: "2026-06-24",
   maxRentMonthly: 3800,
   budgetToleranceMonthly: 150,
