@@ -13,8 +13,8 @@ import {
 } from "@/components/listings/listing-badges";
 import { ListingRiskPanel } from "@/components/listings/listing-risk-panel";
 import { ListingScore } from "@/components/listings/listing-score";
-import { OutreachDraftPanel } from "@/components/outreach/outreach-draft-panel";
 import { TourChecklist } from "@/components/tours/tour-checklist";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,12 +23,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { searchProfile } from "@/lib/demo-data";
-import { getListingBundle, getToursWithListings } from "@/lib/listing-view-models";
+import { getListingBundle } from "@/lib/listing-view-models";
 import { formatDateLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import { draftOutreachFallback, getRecommendedOutreachKind } from "@/lib/outreach";
-import type { ListingStatus } from "@/lib/types";
+import type { ListingStatus, ListingView } from "@/lib/types";
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await connection();
@@ -41,19 +39,13 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   }
 
   const { listing, evaluation } = bundle;
-  const tours = getToursWithListings().filter(({ listing: tourListing }) => tourListing.id === listing.id);
-  const initialDraft = draftOutreachFallback(
-    listing,
-    searchProfile,
-    getRecommendedOutreachKind(listing),
-  );
 
   return (
     <AppShell
       active="board"
       eyebrow="Listing Detail"
       title={listing.title}
-      subtitle={`${listing.neighborhood}, ${listing.borough} · ${formatMoney(listing.rentMonthly)} · ${listing.address ?? "Address missing"}`}
+      subtitle={`${listing.neighborhood ?? "Neighborhood unknown"}${listing.borough ? `, ${listing.borough}` : ""} · ${formatMoney(listing.rentMonthly)} · ${listing.address ?? "Address missing"}`}
       action={
         <>
           <Button asChild size="sm" variant="outline">
@@ -112,7 +104,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <ListPanel title="Open questions" items={evaluation.openQuestions} />
           </div>
 
-          <OutreachDraftPanel initialDraft={initialDraft} listingId={listing.id} />
+          <OutreachDraftPanel listing={listing} />
 
           <Card className="rounded-lg shadow-sm">
             <CardHeader>
@@ -126,9 +118,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </CardContent>
           </Card>
 
-          {tours.map(({ tour }) => (
-            <TourChecklist key={tour.id} listing={listing} tour={tour} />
-          ))}
+          <TourChecklist listing={listing} />
         </div>
 
         <aside className="grid content-start gap-5">
@@ -177,6 +167,43 @@ function ListPanel({
   );
 }
 
+function OutreachDraftPanel({ listing }: { listing: ListingView }) {
+  return (
+    <Card className="rounded-lg shadow-sm">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="stoop-label">Outreach draft</p>
+            <CardTitle className="mt-1 text-lg font-semibold">No stored draft for this listing</CardTitle>
+          </div>
+          <Badge className="rounded-md" variant="secondary">Draft only</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">
+          No outreach history or generated message is stored. Use the listing facts here when drafting real broker
+          contact outside the app.
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <ContactFact label="Contact" value={listing.contactName ?? "Unknown"} />
+          <ContactFact label="Email" value={listing.contactEmail ?? "Unknown"} />
+          <ContactFact label="Phone" value={listing.contactPhone ?? "Unknown"} />
+          <ContactFact label="Next action" value={listing.nextAction} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ContactFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/30 p-3">
+      <p className="stoop-label">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold leading-5">{value}</p>
+    </div>
+  );
+}
+
 function DecisionActions({ listingId }: { listingId: string }) {
   return (
     <Card className="rounded-lg shadow-sm">
@@ -187,7 +214,7 @@ function DecisionActions({ listingId }: { listingId: string }) {
       <CardContent className="grid grid-cols-2 gap-2">
         <StatusAction listingId={listingId} status="contacted" variant="primary">Contact</StatusAction>
         <StatusAction listingId={listingId} status="contacted">Follow up</StatusAction>
-        <StatusAction listingId={listingId} status="tour_scheduled">Schedule tour</StatusAction>
+        <StatusAction listingId={listingId} status="tour_scheduled">Mark tour scheduled</StatusAction>
         <StatusAction listingId={listingId} status="toured">Mark toured</StatusAction>
         <StatusAction listingId={listingId} status="applied">Apply</StatusAction>
         <StatusAction listingId={listingId} status="dead" variant="danger">Kill</StatusAction>

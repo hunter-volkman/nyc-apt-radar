@@ -9,7 +9,9 @@
     "test": "vitest run",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:init": "tsx scripts/init-db.ts",
+    "db:reset": "tsx scripts/init-db.ts --reset",
+    "db:seed": "tsx scripts/init-db.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.10.0",

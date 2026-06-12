@@ -15,14 +15,14 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { formatDateLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import type { DemoListing, ListingEvaluation } from "@/lib/types";
+import type { ListingEvaluation, ListingView } from "@/lib/types";
 
 export function ListingCard({
   listing,
   evaluation,
   compact = false,
 }: {
-  listing: DemoListing;
+  listing: ListingView;
   evaluation: ListingEvaluation;
   compact?: boolean;
 }) {
