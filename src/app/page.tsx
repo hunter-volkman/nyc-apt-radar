@@ -121,7 +121,7 @@ export default async function TodayPage() {
               />
               <ActionQueue
                 icon={<ArrowRight />}
-                title="Needs follow-up"
+                title="Follow-up queue"
                 items={needsFollowUp.map((listing) => ({
                   href: `/listings/${listing.listing.id}`,
                   label: listing.listing.title,
