@@ -25,7 +25,7 @@ import {
   searchProfile,
   tours as storedTours,
 } from "@/lib/demo-data";
-import { generateDailyBriefing } from "@/lib/briefing";
+import { generateDailyBriefingFallback } from "@/lib/briefing";
 import { listListings } from "@/lib/listing-repository";
 import {
   getNeedsFollowUp,
@@ -46,16 +46,24 @@ export default async function TodayPage() {
   const primaryCandidate = topCandidates[0];
   const needsOutreach = getNeedsOutreach();
   const needsFollowUp = getNeedsFollowUp();
+  const currentTime = new Date();
   const scheduledTours = getToursWithListings().filter(
-    ({ listing }) => listing.status === "tour_scheduled",
+    ({ listing, tour }) =>
+      listing.status === "tour_scheduled" &&
+      new Date(tour.startsAt).getTime() >= currentTime.getTime(),
   );
   const recentlyKilled = getRecentlyKilled();
   const readyCount = applicationReadiness.filter((item) => item.ready).length;
   const readinessGaps = applicationReadiness.filter((item) => !item.ready);
-  const dailyBrief = await generateDailyBriefing(listListings(), storedTours, {
-    ...searchProfile,
-    applicationReadiness,
-  });
+  const dailyBrief = generateDailyBriefingFallback(
+    listListings(),
+    storedTours,
+    {
+      ...searchProfile,
+      applicationReadiness,
+    },
+    { referenceNow: currentTime },
+  );
 
   return (
     <AppShell

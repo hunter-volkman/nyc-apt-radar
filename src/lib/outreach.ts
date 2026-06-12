@@ -74,10 +74,9 @@ export function draftOutreachFallback(
       readinessLine,
     ].join(" "),
     follow_up: [
-      `${greeting}, following up on ${listingLabel}${addressClause}.`,
-      `I am still interested and can move quickly if it is available.`,
+      `${greeting}, ${getFollowUpOpening(listing, listingLabel, addressClause)}`,
       openQuestion ? `Could you confirm: ${trimQuestion(openQuestion)}` : null,
-      tourWindows ? `I can tour ${tourWindows}.` : "Could you share the next available tour windows?",
+      getFollowUpClose(listing, tourWindows),
     ]
       .filter(Boolean)
       .join(" "),
@@ -129,7 +128,7 @@ export function getRecommendedOutreachKind(listing: Listing): OutreachKind {
   }
 
   if (listing.status === "tour_scheduled") {
-    return "tour_request";
+    return "follow_up";
   }
 
   if (listing.status === "toured") {
@@ -253,6 +252,22 @@ function getFallbackSubject(listing: Listing, kind: OutreachKind) {
   return subjectByKind[kind];
 }
 
+function getFollowUpOpening(listing: Listing, listingLabel: string, addressClause: string) {
+  if (listing.status === "tour_scheduled") {
+    return `confirming the scheduled tour for ${listingLabel}${addressClause}.`;
+  }
+
+  return `following up on ${listingLabel}${addressClause}. I am still interested and can move quickly if it is available.`;
+}
+
+function getFollowUpClose(listing: Listing, tourWindows: string) {
+  if (listing.status === "tour_scheduled") {
+    return "Please let me know if anything changes before the showing.";
+  }
+
+  return tourWindows ? `I can tour ${tourWindows}.` : "Could you share the next available tour windows?";
+}
+
 function describeListing(listing: Listing) {
   const bedLabel = listing.bedrooms === 0
     ? "the studio"
@@ -296,7 +311,9 @@ function getReadinessLine(listing: Listing, profile: SearchProfile) {
 
 function hasFeeUncertainty(listing: Listing) {
   return listing.fees.concat(listing.redFlags, listing.openQuestions).some((item) =>
-    /\b(?:fee|broker|move-in cash|move in cash|unclear|unknown|unresolved|tbd|confirm)\b/i.test(item),
+    /\b(?:fee|broker|move[-\s]?in cash)\b/i.test(item) &&
+      (/\b(?:unclear|unknown|unresolved|tbd|needs written confirmation|confirm|responsibility|tenant[-\s]?paid|owner[-\s]?paid|total move[-\s]?in cash)\b/i.test(item) ||
+        item.trim().endsWith("?")),
   );
 }
 

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generateDailyBriefing } from "../src/lib/briefing";
-import { draftOutreach, draftOutreachFallback } from "../src/lib/outreach";
+import { generateDailyBriefing, generateDailyBriefingFallback } from "../src/lib/briefing";
+import {
+  draftOutreach,
+  draftOutreachFallback,
+  getRecommendedOutreachKind,
+} from "../src/lib/outreach";
 import type {
   ApplicationReadinessItem,
   Listing,
@@ -138,6 +142,27 @@ const crownHeightsTour: Tour = {
   updatedAt: "2026-06-10T10:04:00-05:00",
 };
 
+const futureUwsTour: Tour = {
+  ...crownHeightsTour,
+  id: "tour-uws-riverside-prewar",
+  listingId: "uws-riverside-prewar",
+  startsAt: "2026-06-12T10:00:00-05:00",
+  endsAt: "2026-06-12T10:30:00-05:00",
+  notes: "Confirm noise, kitchen condition, and building feel.",
+  createdAt: "2026-06-10T11:00:00-05:00",
+  updatedAt: "2026-06-10T11:00:00-05:00",
+};
+
+const cleanScheduledListing: Listing = {
+  ...crownHeightsListing,
+  id: "clean-tour-scheduled",
+  title: "Clean scheduled 1BR",
+  fees: ["no broker fee stated"],
+  redFlags: [],
+  openQuestions: ["What should I bring to the showing?"],
+  status: "tour_scheduled",
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
 
@@ -179,6 +204,19 @@ describe("draftOutreach fallback", () => {
     expect(draft.generationMode).toBe("fallback");
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("recommends fee clarification for tour-scheduled listings with fee uncertainty", () => {
+    expect(getRecommendedOutreachKind(crownHeightsListing)).toBe("fee_clarification");
+  });
+
+  it("recommends follow-up confirmation for tour-scheduled listings without fee uncertainty", () => {
+    const kind = getRecommendedOutreachKind(cleanScheduledListing);
+    const draft = draftOutreachFallback(cleanScheduledListing, profile, kind);
+
+    expect(kind).toBe("follow_up");
+    expect(draft.body).toContain("confirming the scheduled tour");
+    expect(draft.body).not.toContain("Could you share the next available tour windows?");
+  });
 });
 
 describe("generateDailyBriefing fallback", () => {
@@ -191,6 +229,7 @@ describe("generateDailyBriefing fallback", () => {
       [fortGreeneListing, uwsListing, crownHeightsListing, bushwickListing],
       [crownHeightsTour],
       profile,
+      { referenceNow: "2026-06-10T12:00:00-05:00" },
     );
 
     expect(brief.generationMode).toBe("fallback");
@@ -215,5 +254,31 @@ describe("generateDailyBriefing fallback", () => {
     expect(brief.upcomingTours).toEqual([
       "No tours scheduled. Convert one strong candidate into a tour slot.",
     ]);
+  });
+
+  it("excludes past tours with a supplied reference time", () => {
+    const brief = generateDailyBriefingFallback(
+      [crownHeightsListing],
+      [crownHeightsTour],
+      profile,
+      { referenceNow: "2026-06-11T09:00:00-05:00" },
+    );
+
+    expect(brief.upcomingTours).toEqual([
+      "No tours scheduled. Convert one strong candidate into a tour slot.",
+    ]);
+    expect(brief.upcomingTours.join(" ")).not.toContain("Renovated 1.5BR");
+  });
+
+  it("includes future tours with a supplied reference time", () => {
+    const brief = generateDailyBriefingFallback(
+      [crownHeightsListing, uwsListing],
+      [crownHeightsTour, futureUwsTour],
+      profile,
+      { referenceNow: "2026-06-11T09:00:00-05:00" },
+    );
+
+    expect(brief.upcomingTours).toHaveLength(1);
+    expect(brief.upcomingTours[0]).toContain("Quiet prewar 1BR");
   });
 });

@@ -19,6 +19,10 @@ type ScoredListing = {
   evaluation: ListingEvaluation;
 };
 
+export type DailyBriefingOptions = {
+  referenceNow?: Date | string;
+};
+
 const DEFAULT_OPENAI_MODEL = "gpt-5.5";
 
 const dailyBriefingSchema = {
@@ -46,8 +50,9 @@ export async function generateDailyBriefing(
   listings: Listing[],
   tours: Tour[],
   profile: BriefingProfile,
+  options: DailyBriefingOptions = {},
 ): Promise<DailyBriefingResult> {
-  const fallback = generateDailyBriefingFallback(listings, tours, profile);
+  const fallback = generateDailyBriefingFallback(listings, tours, profile, options);
 
   if (!process.env.OPENAI_API_KEY) {
     return fallback;
@@ -64,12 +69,15 @@ export function generateDailyBriefingFallback(
   listings: Listing[],
   tours: Tour[],
   profile: BriefingProfile,
+  options: DailyBriefingOptions = {},
 ): DailyBriefingResult {
   const scored = listings.map((listing) => ({
     listing,
     evaluation: scoreListing(listing, profile),
   }));
-  const generatedAt = getGeneratedAt(listings, tours, profile);
+  const referenceNow = getReferenceDate(options.referenceNow);
+  const generatedAt = referenceNow.toISOString();
+  const referenceTime = referenceNow.getTime();
   const activeScored = scored.filter(({ listing }) => listing.status !== "dead" && listing.status !== "leased");
   const rankedCandidates = activeScored
     .sort(compareScoredListings)
@@ -80,7 +88,7 @@ export function generateDailyBriefingFallback(
     .slice(0, 4);
   const listingById = new Map(listings.map((listing) => [listing.id, listing]));
   const upcomingTours = tours
-    .filter((tour) => new Date(tour.startsAt).getTime() >= new Date(generatedAt).getTime())
+    .filter((tour) => new Date(tour.startsAt).getTime() >= referenceTime)
     .map((tour) => ({ tour, listing: listingById.get(tour.listingId) }))
     .filter((bundle): bundle is { tour: Tour; listing: Listing } => Boolean(bundle.listing))
     .filter(({ listing }) => listing.status !== "dead" && listing.status !== "leased")
@@ -288,22 +296,14 @@ function getReadinessGaps(readiness: ApplicationReadinessItem[] | undefined) {
     .map((item) => item.label.replace(/\s+ready\b/i, "").trim());
 }
 
-function getGeneratedAt(listings: Listing[], tours: Tour[], profile: SearchProfile) {
-  const timestamps = listings
-    .map((listing) => listing.updatedAt)
-    .concat(tours.map((tour) => tour.updatedAt))
-    .map((value) => new Date(value).getTime())
-    .filter(Number.isFinite);
+function getReferenceDate(value: Date | string | undefined) {
+  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
 
-  if (timestamps.length) {
-    return new Date(Math.max(...timestamps)).toISOString();
+  if (Number.isFinite(date.getTime())) {
+    return date;
   }
 
-  if (profile.targetMoveInDate) {
-    return `${profile.targetMoveInDate}T00:00:00.000Z`;
-  }
-
-  return "1970-01-01T00:00:00.000Z";
+  return new Date();
 }
 
 function getTourFocus(listing: Listing) {
