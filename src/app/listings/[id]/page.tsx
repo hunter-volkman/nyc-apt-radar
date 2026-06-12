@@ -13,8 +13,8 @@ import {
 } from "@/components/listings/listing-badges";
 import { ListingRiskPanel } from "@/components/listings/listing-risk-panel";
 import { ListingScore } from "@/components/listings/listing-score";
+import { OutreachDraftPanel } from "@/components/outreach/outreach-draft-panel";
 import { TourChecklist } from "@/components/tours/tour-checklist";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,10 +23,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getOutreachForListing } from "@/lib/demo-data";
+import { searchProfile } from "@/lib/demo-data";
 import { getListingBundle, getToursWithListings } from "@/lib/listing-view-models";
 import { formatDateLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
+import { draftOutreachFallback, getRecommendedOutreachKind } from "@/lib/outreach";
 import type { ListingStatus } from "@/lib/types";
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -41,7 +42,11 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   const { listing, evaluation } = bundle;
   const tours = getToursWithListings().filter(({ listing: tourListing }) => tourListing.id === listing.id);
-  const outreachMessages = getOutreachForListing(listing.id);
+  const initialDraft = draftOutreachFallback(
+    listing,
+    searchProfile,
+    getRecommendedOutreachKind(listing),
+  );
 
   return (
     <AppShell
@@ -107,7 +112,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             <ListPanel title="Open questions" items={evaluation.openQuestions} />
           </div>
 
-          <OutreachDrafts messages={outreachMessages} />
+          <OutreachDraftPanel initialDraft={initialDraft} listingId={listing.id} />
 
           <Card className="rounded-lg shadow-sm">
             <CardHeader>
@@ -167,42 +172,6 @@ function ListPanel({
             </li>
           ))}
         </ul>
-      </CardContent>
-    </Card>
-  );
-}
-
-function OutreachDrafts({
-  messages,
-}: {
-  messages: ReturnType<typeof getOutreachForListing>;
-}) {
-  return (
-    <Card className="rounded-lg shadow-sm">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="stoop-label">Outreach draft</p>
-            <CardTitle className="mt-1 text-lg font-semibold">Draft only, never sent automatically</CardTitle>
-          </div>
-          <Badge className="rounded-md" variant="secondary">Stub</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        {messages.length ? (
-          messages.map((message) => (
-            <div className="rounded-md border bg-muted/30 p-3" key={message.id}>
-              <Badge className="rounded-md capitalize" variant="outline">
-                {message.kind.replaceAll("_", " ")}
-              </Badge>
-              <p className="mt-3 text-sm leading-6">{message.body}</p>
-            </div>
-          ))
-        ) : (
-          <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-            No draft yet.
-          </p>
-        )}
       </CardContent>
     </Card>
   );

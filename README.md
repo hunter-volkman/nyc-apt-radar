@@ -30,13 +30,15 @@ npm run build
 - Status changes persist through server actions.
 - Inbox parses pasted listing text or broker messages into an editable review, then saves the reviewed candidate.
 - Parser fallback works without `OPENAI_API_KEY`; when a key exists, the parser can use an OpenAI-backed extraction path and falls back safely on errors.
+- Outreach drafts generate for first contact, follow-up, fee clarification, tour request, and post-tour interest. Drafts are editable text only and are never sent automatically.
+- Daily briefing is generated from local listings, tours, follow-ups, risks, and application-readiness gaps. It works without `OPENAI_API_KEY`; when a key exists, it can use an OpenAI-backed generation path and falls back safely on errors.
 - Tours page tracks checklist state and verdicts from local data.
 - Application readiness tracks checklist state without uploading or storing sensitive documents.
 - The interface uses shadcn/ui components in `src/components/ui/*`.
 
 ## Stubbed For Later Threads
 
-- Outreach drafts are demo drafts and are never sent automatically.
 - Draft storage and screenshot upload are labeled as future/stubbed surfaces.
+- Message sending remains out of scope; generated outreach is copyable draft text only.
 - Building-risk data is explicitly unknown; no live HPD, DOB, 311, or rent-stabilization integrations exist.
 - No Supabase, authentication, payments, scraping, autonomous browsing, automatic messaging, or sensitive document storage has been added.

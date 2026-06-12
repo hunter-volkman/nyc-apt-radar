@@ -22,9 +22,11 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   applicationReadiness,
-  dailyBrief,
   searchProfile,
+  tours as storedTours,
 } from "@/lib/demo-data";
+import { generateDailyBriefingFallback } from "@/lib/briefing";
+import { listListings } from "@/lib/listing-repository";
 import {
   getNeedsFollowUp,
   getNeedsOutreach,
@@ -44,12 +46,24 @@ export default async function TodayPage() {
   const primaryCandidate = topCandidates[0];
   const needsOutreach = getNeedsOutreach();
   const needsFollowUp = getNeedsFollowUp();
+  const currentTime = new Date();
   const scheduledTours = getToursWithListings().filter(
-    ({ listing }) => listing.status === "tour_scheduled",
+    ({ listing, tour }) =>
+      listing.status === "tour_scheduled" &&
+      new Date(tour.startsAt).getTime() >= currentTime.getTime(),
   );
   const recentlyKilled = getRecentlyKilled();
   const readyCount = applicationReadiness.filter((item) => item.ready).length;
   const readinessGaps = applicationReadiness.filter((item) => !item.ready);
+  const dailyBrief = generateDailyBriefingFallback(
+    listListings(),
+    storedTours,
+    {
+      ...searchProfile,
+      applicationReadiness,
+    },
+    { referenceNow: currentTime },
+  );
 
   return (
     <AppShell
@@ -111,7 +125,7 @@ export default async function TodayPage() {
               />
               <ActionQueue
                 icon={<ArrowRight />}
-                title="Needs follow-up"
+                title="Follow-up queue"
                 items={needsFollowUp.map((listing) => ({
                   href: `/listings/${listing.id}`,
                   label: listing.title,

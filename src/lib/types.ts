@@ -112,6 +112,14 @@ export type OutreachMessage = {
   createdAt: string;
 };
 
+export type GenerationMode = "fallback" | "openai";
+
+export type OutreachDraft = OutreachMessage & {
+  subject: string;
+  generationMode: GenerationMode;
+  safetyNote: string;
+};
+
 export type TourVerdict = "unknown" | "kill" | "maybe" | "apply";
 
 export type Tour = {
@@ -134,6 +142,10 @@ export type DailyBrief = {
   deadOrRiskyListings: string[];
   applicationReadinessGaps: string[];
   recommendedNextActions: string[];
+};
+
+export type DailyBriefingResult = DailyBrief & {
+  generationMode: GenerationMode;
 };
 
 export type ParserMode = "openai" | "fallback";
