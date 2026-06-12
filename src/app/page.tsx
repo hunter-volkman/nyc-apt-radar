@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarCheck, ClipboardList, Inbox } from "lucide-react";
+import { ArrowRight, Bell, CalendarCheck, ClipboardList, Radar } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
@@ -56,14 +56,14 @@ export default async function TodayPage() {
     <AppShell
       active="today"
       eyebrow="Today"
-      title="Command the apartment hunt."
-      subtitle="One local screen for the next action, best candidates, follow-ups, tours, risk, and readiness gaps."
+      title="Command the apartment search."
+      subtitle="A compact view of ranked leads, follow-ups, tours, risk, and readiness gaps."
       action={
         <>
           <Button asChild size="sm">
-            <Link href="/inbox">
-              <Inbox />
-              Capture
+            <Link href="/radar">
+              <Radar />
+              Radar
             </Link>
           </Button>
           <Button asChild size="sm" variant="outline">
@@ -83,7 +83,7 @@ export default async function TodayPage() {
             <section>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <p className="stoop-label">Top candidates</p>
+                  <p className="radar-label">Top candidates</p>
                   <h2 className="mt-1 text-xl font-semibold">Ranked by fit and urgency</h2>
                 </div>
                 <Button asChild size="sm" variant="outline">
@@ -100,10 +100,10 @@ export default async function TodayPage() {
                   ))
                 ) : (
                   <EmptyPanel
-                    actionHref="/inbox"
-                    actionLabel="Capture listing"
+                    actionHref="/radar"
+                    actionLabel="Open Radar"
                     title="No ranked candidates yet"
-                    body="Paste the first real listing in Inbox. Stoop will parse it, score it, and put it on the board."
+                    body="Keep the scanner loop running. Hot and review-worthy leads will appear here after source events are processed."
                   />
                 )}
               </div>
@@ -111,7 +111,7 @@ export default async function TodayPage() {
 
             <div className="grid gap-5 xl:grid-cols-2">
               <ActionQueue
-                icon={<Inbox />}
+                icon={<Bell />}
                 title="Needs outreach"
                 items={needsOutreach.map((listing) => ({
                   href: `/listings/${listing.listing.id}`,
@@ -150,18 +150,17 @@ function EmptyTodayCommand() {
     <Card className="rounded-lg border-primary/20 shadow-sm">
       <CardContent className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1fr_auto] lg:items-center">
         <div>
-          <p className="stoop-label">Next concrete action</p>
-          <h2 className="mt-1 text-xl font-semibold leading-7">Capture the first real listing.</h2>
+          <p className="radar-label">Next concrete action</p>
+          <h2 className="mt-1 text-xl font-semibold leading-7">Start the scanner loop.</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            The database is empty. Paste a real listing, broker message, or manual notes in Inbox, then review
-            every extracted field before saving the candidate.
+            The database is empty. Start the watcher and let NYC Apt Radar parse, score, and classify new source events.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
           <Button asChild>
-            <Link href="/inbox">
-              <Inbox />
-              Capture listing
+            <Link href="/radar">
+              <Radar />
+              Open Radar
             </Link>
           </Button>
           <Button asChild variant="outline">
@@ -205,7 +204,7 @@ function PrimaryCommand({ bundle }: { bundle: ListingBundle }) {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/inbox">Capture another</Link>
+            <Link href="/radar">Open Radar</Link>
           </Button>
         </div>
       </CardContent>
@@ -288,7 +287,7 @@ function ToursCard({
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="stoop-label">Scheduled tours</p>
+            <p className="radar-label">Scheduled tours</p>
             <CardTitle className="mt-1 text-lg font-semibold">Tour checks on deck</CardTitle>
           </div>
           <Button asChild size="sm" variant="outline">
@@ -326,7 +325,7 @@ function SearchProfileCard() {
   return (
     <Card className="rounded-lg shadow-sm">
       <CardHeader>
-        <p className="stoop-label">Search profile</p>
+        <p className="radar-label">Search profile</p>
         <CardTitle className="text-lg font-semibold">{searchProfile.name}</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 text-sm">
@@ -352,7 +351,7 @@ function ReadinessCard({
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="stoop-label">Application readiness</p>
+            <p className="radar-label">Application readiness</p>
             <CardTitle className="mt-1 text-lg font-semibold">
               {readiness.trackedReadyCount}/{readiness.totalCount} tracked ready
             </CardTitle>
@@ -381,7 +380,7 @@ function KilledCard({ listings }: { listings: ListingBundle[] }) {
   return (
     <Card className="rounded-lg border-red-200 bg-red-50/60 shadow-sm">
       <CardHeader>
-        <p className="stoop-label">Recently killed</p>
+        <p className="radar-label">Recently killed</p>
         <CardTitle className="text-lg font-semibold">Do not reopen casually</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-2">
@@ -409,7 +408,7 @@ function KilledCard({ listings }: { listings: ListingBundle[] }) {
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-muted/35 p-3">
-      <p className="stoop-label">{label}</p>
+      <p className="radar-label">{label}</p>
       <p className="mt-1 font-semibold">{value}</p>
     </div>
   );

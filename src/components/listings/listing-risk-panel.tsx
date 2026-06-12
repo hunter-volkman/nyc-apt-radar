@@ -22,7 +22,7 @@ export function ListingRiskPanel({
       )}
     >
       <CardHeader>
-        <p className="stoop-label">Building risk</p>
+        <p className="radar-label">Building risk</p>
         <CardTitle className="text-lg font-semibold">Unknown until sourced</CardTitle>
         <p className="text-sm leading-6 text-muted-foreground">
           No live HPD, DOB, 311, or rent-stabilization data is connected.
@@ -41,7 +41,7 @@ export function ListingRiskPanel({
 function RiskList({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="rounded-md border bg-card p-3">
-      <p className="stoop-label">{title}</p>
+      <p className="radar-label">{title}</p>
       <ul className="mt-2 grid gap-2 text-sm leading-5 text-foreground">
         {items.map((item) => (
           <li key={item}>{item}</li>

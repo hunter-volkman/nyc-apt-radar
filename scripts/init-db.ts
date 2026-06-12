@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import { localDatabasePath } from "../src/db/client";
 import { ensureDatabase } from "../src/db/ensure";
 import { clearListings, listListings } from "../src/lib/listing-repository";
+import { clearRadarData } from "../src/lib/radar";
 
 export type DatabaseSetupOptions = {
   reset?: boolean;
@@ -11,6 +12,7 @@ export function runDatabaseSetup({ reset = false }: DatabaseSetupOptions = {}) {
   ensureDatabase();
 
   if (reset) {
+    clearRadarData();
     clearListings();
   }
 

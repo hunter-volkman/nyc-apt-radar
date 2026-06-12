@@ -27,7 +27,7 @@ describe("parseListingFallback", () => {
     expect(parsed.listing.bathrooms).toBe(1);
     expect(parsed.listing.squareFeet).toBe(690);
     expect(parsed.listing.availableDate).toBe("2026-06-20");
-    expect(parsed.listing.contactEmail).toBe("maya@northline.example");
+    expect(parsed.listing.contactEmail).toBe("leasing@northline.example");
     expect(parsed.listing.contactPhone).toBe("(917) 555-0194");
     expect(parsed.fees).toContain("owner-paid fee claimed; needs written confirmation");
     expect(parsed.redFlags).toContain("fee language not explicit");

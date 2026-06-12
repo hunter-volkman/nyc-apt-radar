@@ -25,7 +25,7 @@ export function ListingScore({ evaluation }: { evaluation: ListingEvaluation }) 
       <CardHeader className="gap-3">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="stoop-label">Score</p>
+            <p className="radar-label">Score</p>
             <CardTitle className="mt-1 text-lg font-semibold">
               {evaluation.totalScore}/100
             </CardTitle>

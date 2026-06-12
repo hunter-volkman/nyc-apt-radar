@@ -57,6 +57,7 @@ export async function deleteListingFromForm(formData: FormData) {
 
 function revalidateListingViews(id: string) {
   revalidatePath("/");
+  revalidatePath("/radar");
   revalidatePath("/board");
   revalidatePath("/inbox");
   revalidatePath(`/listings/${id}`);

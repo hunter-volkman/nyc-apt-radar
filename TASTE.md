@@ -1,26 +1,21 @@
-# Stoop Taste Bar
+# NYC Apt Radar Taste Bar
 
-The interface succeeds only if it makes the apartment hunt feel finite.
+The product is a race against disappearing listings. Everything that does not improve the race should be cut.
 
-Default verdict: cut decoration and surface judgment. A beautiful Stoop screen is not lush; it is calm, fast, and difficult to misread under pressure.
+Good NYC Apt Radar UI:
 
-Good Stoop UI:
+- Makes the scanner loop legible in five seconds.
+- Puts hot and review-worthy listings above everything else.
+- Shows enough evidence to trust the alert: source, rent, address/neighborhood, score, blocker, link.
+- Keeps outreach copy one click away and sending out of scope.
+- Uses empty states that tell the truth without inventing momentum.
+- Treats future commute, map, building-risk, and outreach systems as future systems, not decorative promises.
 
-- Makes the next action obvious.
-- Makes weak listings easy to kill.
-- Makes strong listings easy to act on.
-- Shows the tradeoff behind a score instead of treating the number as magic.
-- Keeps risk visible without making the whole app feel alarmist.
-- Treats mobile as a real tour-day surface.
-- Labels stubs honestly instead of letting fake controls survive.
+Bad NYC Apt Radar UI:
 
-Bad Stoop UI:
-
-- Looks like a landing page.
-- Spends first-screen space on mood.
-- Uses glass, glow, blur, or animation to compensate for weak information hierarchy.
-- Hides rent, address, score, eligibility, status, risk, or next action.
-- Lets repeated cards drift into inconsistent layouts.
-- Makes the user read paragraphs to know what to do.
-
-When in doubt, choose the denser, clearer screen. The user is trying to lease an apartment, not admire an interface system.
+- Starts with a form when the product is supposed to be watching.
+- Looks like a generic dashboard.
+- Spreads one urgent workflow across too many surfaces.
+- Keeps placeholder panels because they might be useful later.
+- Confuses stored local facts with live-market facts.
+- Makes the user read prose when a status, count, or row would do.

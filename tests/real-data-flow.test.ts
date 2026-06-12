@@ -21,8 +21,8 @@ let listListings: ListingRepositoryModule["listListings"];
 let runDatabaseSetup: DatabaseSetupModule["runDatabaseSetup"];
 
 beforeAll(async () => {
-  tempDir = mkdtempSync(path.join(tmpdir(), "stoop-real-data-"));
-  process.env.STOOP_DATABASE_PATH = path.join(tempDir, "stoop.sqlite");
+  tempDir = mkdtempSync(path.join(tmpdir(), "nyc-apt-radar-real-data-"));
+  process.env.NYC_APT_RADAR_DATABASE_PATH = path.join(tempDir, "nyc-apt-radar.sqlite");
 
   ({ runDatabaseSetup } = await import("../scripts/init-db"));
   ({ createListing, listListings } = await import("../src/lib/listing-repository"));
@@ -44,7 +44,7 @@ beforeEach(() => {
 
 afterAll(() => {
   rmSync(tempDir, { force: true, recursive: true });
-  delete process.env.STOOP_DATABASE_PATH;
+  delete process.env.NYC_APT_RADAR_DATABASE_PATH;
 });
 
 describe("real-data database setup", () => {

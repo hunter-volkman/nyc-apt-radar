@@ -123,8 +123,8 @@ export function CaptureListingPanel() {
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="stoop-label">Step 1</p>
-              <CardTitle className="mt-1 text-xl font-semibold">Capture raw material</CardTitle>
+              <p className="radar-label">Step 1</p>
+              <CardTitle className="mt-1 text-xl font-semibold">Parse one-off source text</CardTitle>
             </div>
             <Button disabled={!canParse || isParsing} onClick={handleParse} type="button" variant="secondary">
               {isParsing ? <Loader2 className="animate-spin" /> : <FileText />}
@@ -171,7 +171,7 @@ export function CaptureListingPanel() {
             </TabsContent>
           </Tabs>
 
-          <Field label="Manual notes">
+          <Field label="Additional context">
             <Textarea
               className="min-h-20 resize-y"
               onChange={(event) => setManualNotes(event.target.value)}
@@ -195,7 +195,7 @@ export function CaptureListingPanel() {
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="stoop-label">Step 2</p>
+              <p className="radar-label">Step 2</p>
               <CardTitle className="mt-1 text-xl font-semibold">Review and save candidate</CardTitle>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -382,7 +382,7 @@ function ParseStatus({ error, parsed }: { error: string | null; parsed: ParsedLi
 function Field({ children, label }: { children: ReactNode; label: string }) {
   return (
     <label className="grid gap-1.5">
-      <span className="stoop-label">{label}</span>
+      <span className="radar-label">{label}</span>
       {children}
     </label>
   );
@@ -410,7 +410,7 @@ function parsedListingToReviewDraft(parsed: ParsedListing): ReviewDraft {
     fees: parsed.fees.join("\n"),
     redFlags: parsed.redFlags.join("\n"),
     openQuestions: parsed.openQuestions.join("\n"),
-    personalNotes: listing.personalNotes ?? "Saved from Inbox parser review.",
+    personalNotes: listing.personalNotes ?? "Saved from fallback parser review.",
   };
 }
 
