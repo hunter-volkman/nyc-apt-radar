@@ -1,0 +1,36 @@
+{
+  "name": "Default NYC apartment search",
+  "budget": {
+    "targetRent": 3800,
+    "maxRent": 4000,
+    "stretchRent": 4100
+  },
+  "neighborhoods": {
+    "preferred": ["Williamsburg", "Chelsea", "Fort Greene", "Clinton Hill", "Prospect Heights", "Park Slope"],
+    "acceptable": ["Astoria", "Crown Heights", "Upper West Side", "South Slope"],
+    "avoid": ["Far Rockaway", "East New York", "Brownsville"]
+  },
+  "commuteTargets": [
+    {
+      "label": "Bryant Park",
+      "address": "Bryant Park, New York, NY",
+      "latitude": 40.7536,
+      "longitude": -73.9832,
+      "maxMinutes": 35
+    },
+    {
+      "label": "Union Square",
+      "address": "Union Square, New York, NY",
+      "latitude": 40.7359,
+      "longitude": -73.9911,
+      "maxMinutes": 35
+    }
+  ],
+  "petRequirements": {
+    "cats": true,
+    "dogs": false
+  },
+  "feePreference": "no_fee",
+  "targetMoveIn": "2026-07-01",
+  "hotScore": 78
+}

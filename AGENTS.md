@@ -1,43 +1,49 @@
 # NYC Apt Radar Agent Guide
 
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
-
-This version has breaking changes. Read the relevant guide in `node_modules/next/dist/docs/` before writing code that depends on App Router, route handlers, layout/page props, caching, or CSS behavior.
-<!-- END:nextjs-agent-rules -->
-
 ## Product Boundary
 
-Build NYC Apt Radar as a local-first New York City apartment scanner. The core loop is:
+Build NYC Apt Radar as a local-first New York City apartment discovery loop:
 
 ```text
-watched source event -> parse listing -> score listing -> notify if hot -> act fast -> track outcome
+watched source -> source event -> extract listing -> finalize fields -> estimate commute -> score -> notify if hot -> draft outreach -> track status
 ```
 
-Do not add Supabase, authentication, payments, scraping, autonomous browsing, automatic message sending, public broker marketplace features, native mobile work, lease signing, roommate matching, fake live integrations, or sensitive document storage.
+Do not add Supabase, authentication, payments, CAPTCHA bypassing, stealth automation, credentialed scraping, automatic message sending, public broker marketplace features, native mobile work, lease signing, roommate matching, fake live integrations, or sensitive document storage.
+
+Plain fetch against explicitly configured public URLs is allowed. If a source blocks normal access, record the failure honestly.
 
 ## Current State
 
-The app uses local SQLite persistence with Drizzle, deterministic listing scoring, watched source-event ingestion, and ntfy notification support. Parser, outreach, upload, map, commute, and draft-storage surfaces are bounded future work unless a later thread explicitly implements them.
+The app is a terminal-first TypeScript project with local SQLite persistence, deterministic scoring, watched source ingestion, subway commute estimates, and ntfy notification support.
+
+There is no web app. Do not reintroduce Next.js, React, shadcn/ui, Tailwind, Drizzle, or browser automation unless the user explicitly changes the product direction.
 
 Preserve these root planning files unless the user explicitly asks to change them:
 
 - `PROMPT.md`
 - `SPEC.md`
 - `WORKFLOW.md`
-- `STYLE.md`
-- `TASTE.md`
 
-## Visual Direction
+## Architecture
 
-Use shadcn/ui as the design-system foundation in `src/components/ui/*`. NYC Apt Radar should feel like a calm, dense, high-quality scanner console, not a glassmorphism demo or generic SaaS dashboard. Keep loop health, hot leads, source, rent, neighborhood, address, score, status, blocker, push state, and next action visible.
-
-Avoid giant heroes, marketing composition, decorative glass, animation-heavy UI, cards nested inside cards, and controls that look active but do nothing. Stubbed controls must be disabled or clearly labeled.
+- `src/core/*`: listing model, preferences, field finalization, transit, scoring, ranking, outreach.
+- `src/discovery/*`: source config, source collection, extraction, agent loop.
+- `src/discovery/intake.ts`: one-off URL, file, text, and stdin intake.
+- `src/notifications/*`: ntfy notification behavior and failed-attempt recording.
+- `src/diagnostics/*`: operator readiness checks.
+- `src/storage/*`: SQLite schema and repositories.
+- `scripts/*`: terminal commands.
+- `tests/*`: loop behavior tests.
+- `data/preferences.example.json`: operator-editable preference and commute-target template.
+- `data/source-events/appointment-leads.json`: real operator-provided starter source event.
 
 ## Engineering Notes
 
 - Keep implementation typed and boring.
-- Prefer existing components and data shapes before inventing new ones.
-- Be honest about stubs and future official-data boundaries.
-- Do not add fake source data, fake live integrations, fake map pins, or controls that imply the loop can do work it cannot do.
-- Run `npm run build` before handing off meaningful UI changes.
+- Prefer deterministic scoring over LLM ranking.
+- Unknown listing facts lower confidence; they do not automatically reject a listing.
+- Use OpenAI only at extraction boundaries. Structured JSON source events may bypass OpenAI because they are already data.
+- Do not send outreach automatically.
+- Do not add fake listings. Starter source data must be user-supplied.
+- Keep comments sparse; prefer clear names and small functions.
+- Run `npm run test`, `npm run typecheck`, and `npm run build` before handoff.

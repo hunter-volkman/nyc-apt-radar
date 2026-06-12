@@ -1,82 +1,205 @@
 # NYC Apt Radar
 
-NYC Apt Radar is a local-first scanner for finding a New York City lease before good listings disappear.
+NYC Apt Radar is a private, local-first apartment discovery loop for a New York City search. It watches real allowed sources, extracts listing facts with OpenAI when the input is messy, finalizes fields locally, estimates subway commute quality, scores and ranks listings, sends ntfy push notifications for hot leads, drafts outreach, and tracks status.
 
-It is not a marketplace, broker CRM, authentication product, payment product, or chatbot wrapper. Version zero is a local Next.js app with SQLite persistence, deterministic scoring, source-event ingestion, ntfy push, copy-only outreach, and a dense Radar console.
+It is not a web demo, marketplace, scraper, CAPTCHA bypasser, stealth browser, CRM, payment app, or automatic message sender.
 
-## Run Locally
+```mermaid
+flowchart LR
+  A["source file or allowed URL"] --> B["source event"]
+  B --> C{"JSON listing data?"}
+  C -->|yes| D["use provided fields"]
+  C -->|no| E["OpenAI extraction"]
+  D --> F["finalize listing"]
+  E --> F
+  F --> G["commute + score"]
+  G --> H["ranked terminal radar"]
+  G --> I{"hot?"}
+  I -->|yes| J["ntfy push"]
+  H --> K["draft + status"]
+```
+
+## Get It Working In The Next Hour
+
+Install dependencies:
 
 ```bash
 npm install
-npm run db:init
-npm run radar:run
-npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-To clear local listings and return to an empty real-data database:
+Create real local configuration:
 
 ```bash
-npm run db:reset
+npm run ntfy:setup -- --write
 ```
 
-`npm run db:seed` remains as a compatibility alias for database initialization only. It does not insert listings.
-
-## Radar Loop
-
-NYC Apt Radar ingests source messages from `.txt` or `.eml` files:
+Then edit `.env.local` and add:
 
 ```bash
-mkdir -p data/source-events
-cp ~/Downloads/streeteasy-alert.eml data/source-events/
-npm run radar:run
+OPENAI_API_KEY=your-openai-api-key
 ```
 
-For a local watch loop:
+Subscribe to the generated ntfy topic in the ntfy app, then run:
 
 ```bash
-NYC_APT_RADAR_WATCH_INTERVAL_MINUTES=10 npm run radar:watch
+npm run doctor
+npm run notify:test
+npm run reset
+npm run intake -- https://streeteasy.com/building/345-west-30-street-new_york/4b
+npm run discover
+npm run radar
+npm run listing:draft -- 345-w-30th-st-4b
+npm run watch -- --once
 ```
 
-Optional phone push through the ntfy iOS app:
+`doctor` must pass before the unattended loop is real. It checks SQLite, preferences, sources, OpenAI, ntfy, and watch interval. `notify:test` must reach your phone.
+
+After the one-shot watch works, install the macOS LaunchAgent:
 
 ```bash
-NYC_APT_RADAR_NOTIFY_CHANNEL=ntfy
-NYC_APT_RADAR_NTFY_TOPIC=nyc-apt-radar-long-random-secret
+npm run watch:plist -- --write
+launchctl unload ~/Library/LaunchAgents/com.nyc-apt-radar.loop.plist 2>/dev/null || true
+launchctl load ~/Library/LaunchAgents/com.nyc-apt-radar.loop.plist
+launchctl start com.nyc-apt-radar.loop
+npm run logs
 ```
 
-Legacy `APARTMENT_RADAR_*` and `STOOP_*` environment variables are still read as compatibility aliases.
+## Intake
 
-## Build
+Use `intake` when you have something in front of you and want it in the radar now:
 
 ```bash
-npm run build
+npm run intake -- https://streeteasy.com/building/...
+npm run intake -- --file listings.txt
+npm run intake -- --text "paste listing text"
+pbpaste | npm run intake
 ```
 
-## What Works
+If a file contains only URLs, one per line, each URL is intaken separately.
 
-- Listings persist locally through SQLite and Drizzle.
-- Database initialization creates required tables without fake listings.
-- Radar imports watched source messages, dedupes them, scores listings, classifies hot leads, records notification history, and prepares copy-only outreach.
-- Radar is the primary UI: loop health, action queue, source ledger, and push history.
-- Today and Board remain secondary local views over saved records.
-- Board shows the exact allowed statuses: `new`, `contacted`, `tour_scheduled`, `toured`, `applied`, `dead`, and `leased`.
-- Listing Detail shows summary, score breakdown, hard filters, strengths, risks, open questions, outreach facts, tour checklist template, notes, building-risk status, and decision actions.
-- Status changes persist through server actions.
-- Inbox remains a fallback parser surface, but it is no longer the primary scanner workflow.
-- Parser fallback works without `OPENAI_API_KEY`; when a key exists, the parser can use an OpenAI-backed extraction path and falls back safely on errors.
-- No automatic outreach sending exists. Copyable contact packets are shown for real listings only.
-- Daily briefing is generated deterministically from local listings and status queues.
-- Tours page shows real listings marked `tour_scheduled` or `toured` and does not invent tour times, notes, checklist state, or verdicts.
-- Application readiness shows checklist definitions only; no ready state is pretended or stored.
-- The interface uses shadcn/ui components in `src/components/ui/*`.
+For URLs, the tool tries normal public HTTP fetch first. If the page blocks plain access or cannot be read, the tool saves a URL-only lead with the source link intact instead of bypassing source controls. Paste listing text or export files when you want OpenAI to fill more fields.
 
-## Stubbed For Later Threads
+For pasted text, email exports, HTML, Markdown, and other unstructured files, `intake` uses OpenAI Structured Outputs, saves the extracted listings, scores them, and prints the next action plus draft command.
 
-- Draft storage and screenshot upload are not implemented.
-- Message sending remains out of scope; any future generated outreach must be copyable draft text only.
-- Tour time/checklist/verdict persistence is not implemented yet.
-- Application readiness persistence is not implemented yet.
-- Building-risk data is explicitly unknown; no live HPD, DOB, 311, or rent-stabilization integrations exist.
-- No Supabase, authentication, payments, autonomous browsing, automatic messaging, or sensitive document storage has been added.
+## Watched Sources
+
+The default watched source directory is:
+
+```text
+data/source-events
+```
+
+The repo includes one real structured source event:
+
+```text
+data/source-events/appointment-leads.json
+```
+
+To add listings, place `.json`, `.txt`, `.eml`, `.html`, or `.md` files in `data/source-events`, then run:
+
+```bash
+npm run discover
+```
+
+Structured JSON source events are passed through and finalized locally. Unstructured text, email, HTML, and Markdown require `OPENAI_API_KEY` and are extracted with OpenAI Structured Outputs.
+
+To configure additional real sources, create `data/sources.json` with directory, file, or public URL entries that you are allowed to fetch with plain HTTP. You can also set `NYC_APT_RADAR_SOURCE_URLS` in `.env.local` to a comma-separated list of real public URLs.
+
+If a source fails, the loop records the failure and continues processing other reachable sources. It does not bypass source controls.
+
+## Commands
+
+```bash
+npm run doctor
+npm run verify:loop
+npm run intake -- https://streeteasy.com/building/...
+npm run intake -- --file listings.txt
+npm run discover
+npm run radar
+npm run listing:add -- --title "New lead" --rent 3995 --source-url "https://..."
+npm run listing:update -- 56-ainslie-st-4g --pets cats_allowed --fee-status no_fee --notes "Broker confirmed cats."
+npm run listing:status -- 56-ainslie-st-4g interested
+npm run listing:draft -- 56-ainslie-st-4g
+npm run listing:extract -- "paste listing text"
+npm run notify:test
+npm run notifications
+npm run sources
+npm run watch -- --once
+npm run watch:plist -- --write
+npm run logs
+npm run reset
+```
+
+OpenAI-assisted extraction:
+
+```bash
+npm run listing:extract -- "paste listing text"
+cat listing.txt | npm run listing:extract -- --save
+```
+
+`listing:extract` prints or saves raw OpenAI extraction output. Prefer `intake` for normal use because it records the source event, saves listings, scores them, and prints the next action.
+
+## Scoring
+
+Scores are deterministic from 0 to 100:
+
+- price fit: 25
+- location fit: 20
+- commute fit: 20
+- apartment fit: 15
+- pet fit: 10
+- freshness: 5
+- completeness/confidence: 5
+
+Unknown fields lower confidence and score. They do not automatically reject a listing. Explicit dealbreakers cap the score.
+
+## Preferences
+
+The default profile lives in `src/core/preferences.ts`. For local configuration, create `data/preferences.json` from `data/preferences.example.json`, then set:
+
+```bash
+NYC_APT_RADAR_PREFERENCES_PATH=data/preferences.json
+```
+
+The profile supports budget, neighborhoods, commute targets, bedroom and bathroom preferences, pet requirements, fee preference, dealbreakers, nice-to-haves, and the hot-score threshold.
+
+## Notifications
+
+Hot listings are pushed through ntfy. Missing ntfy configuration is a failed readiness check. Delivery failures are recorded in SQLite and retried on the next run for the same listing score.
+
+Use:
+
+```bash
+npm run notify:test
+npm run notify:test -- --listing 345-w-30th-st-4b
+npm run notifications
+```
+
+## Storage
+
+Local SQLite data is stored at:
+
+```text
+data/nyc-apt-radar-loop.sqlite
+```
+
+Reset it with:
+
+```bash
+npm run reset
+```
+
+## Out Of Scope
+
+- credentialed scraping
+- CAPTCHA bypassing
+- stealth automation
+- source access evasion
+- automatic message sending
+- public marketplace features
+- multi-user features
+- payments
+- authentication
+- sensitive document storage
+- native mobile app
+- decorative web UI

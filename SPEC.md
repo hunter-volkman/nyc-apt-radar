@@ -1,733 +1,217 @@
-# Stoop Product and Engineering Specification
+# SPEC.md - NYC Apartment Radar
 
-## Product Definition
+## Goal
 
-Name: `Stoop`
-
-Repository: `stoop-app`
-
-One-line description:
+Build a private, local-first apartment discovery agent loop for a New York City apartment search.
 
 ```text
-Stoop is a local-first apartment command center for finding a New York City lease fast.
+watched source -> source event -> extract listing -> finalize fields -> estimate commute -> score -> rank -> notify -> draft outreach -> track status
 ```
 
-Tagline:
+The product is acceptable when the local operator can leave the loop running, receive ntfy push notifications for interesting matches, inspect why a listing scored well or poorly, and act quickly without the app sending messages automatically.
+
+## User
+
+Primary user: the local operator.
+
+This is not a public marketplace or general real estate product. Optimize for speed, signal, and honest automation.
+
+## Product Principles
+
+- Speed over completeness.
+- Signal over volume.
+- Human in control.
+- Deterministic scoring before model judgment.
+- Local-first persistence.
+- Plain automation over theatrical demos.
+- Respect source access controls.
+- No fake live integrations.
+
+## In Scope
+
+- Watch local saved-search exports, copied listing alerts, email exports, JSON files, HTML files, and configured public URLs.
+- Intake one-off URLs, files, pasted text, and stdin from a terminal command.
+- Extract candidate listings into a normalized shape.
+- Store source events for dedupe and audit.
+- Score listings against the configured preferences.
+- Estimate subway commute quality to multiple target addresses.
+- Show ranked listings in the terminal.
+- Send ntfy push notifications for hot matches.
+- Generate editable outreach drafts.
+- Track status.
+- Use OpenAI Responses API Structured Outputs for unstructured listing-text extraction.
+
+## Out Of Scope
+
+- Credentialed scraping.
+- CAPTCHA bypassing.
+- Stealth browser automation.
+- Platform evasion.
+- Automatic message sending.
+- Public marketplace features.
+- Multi-user features.
+- Payments.
+- Authentication.
+- Sensitive document storage.
+- Native mobile app.
+- Decorative web UI.
+
+## Listing Model
+
+A normalized listing should include:
+
+- `id`
+- `source`
+- `sourceUrl`
+- `title`
+- `address`
+- `neighborhood`
+- `borough`
+- `rent`
+- `bedrooms`
+- `bathrooms`
+- `availableDate`
+- `description`
+- `amenities`
+- `pets`
+- `feeStatus`
+- `latitude`
+- `longitude`
+- `status`
+- `firstSeenAt`
+- `lastSeenAt`
+- `score`
+- `scoreExplanation`
+
+Optional practical fields:
+
+- `contactName`
+- `appointmentAt`
+
+## Statuses
+
+Supported statuses:
 
 ```text
-Your apartment hunt, ranked.
+new, interested, contacted, scheduled, rejected, viewed, applied
 ```
 
-Version zero must be a usable local application, not a pitch deck, mockup, marketplace, scraper, or chat wrapper.
+## Preferences
 
-## Product Thesis
+The preference profile must support:
 
-Stoop should not help Hunter browse more apartments. Browsing is already abundant. The bottleneck is judgment under time pressure.
+- budget
+- preferred, acceptable, and avoided neighborhoods
+- multiple commute target addresses
+- bedroom and bathroom preference
+- pet requirements
+- fee preference
+- dealbreakers
+- nice-to-haves
+- hot-score threshold
 
-Stoop should help Hunter:
+Unknown values should lower confidence, not automatically reject a listing.
 
-1. Eliminate weak listings faster.
-2. Act on strong listings immediately.
-3. Keep follow-up, tours, notes, and application readiness in one local system.
+The default profile may live in TypeScript, but the running loop must support a JSON preference file so budget, neighborhoods, and any number of commute target addresses can change without code edits.
 
-Core loop:
+## Commute Model
+
+For each listing and each target address, estimate:
+
+- nearest useful station
+- walk time to train
+- train lines
+- train switches
+- train time
+- destination station
+- walk time from train
+- total time
+
+The first implementation may use a small local subway graph. It must be inspectable and easy to expand. GTFS-backed routing is future hardening.
+
+## Scoring
+
+Scoring is deterministic from 0 to 100:
+
+- price fit: 25
+- location fit: 20
+- commute fit: 20
+- apartment fit: 15
+- pet fit: 10
+- freshness: 5
+- completeness/confidence: 5
+
+Each score must include a human-readable explanation.
+
+Example:
 
 ```text
-capture listing -> parse listing -> score listing -> choose next action -> track outcome
+86/100 - Strong match. Within budget, preferred neighborhood, Bryant Park: 31 min via M, cats allowed, fee status unknown.
 ```
 
-No feature matters until this loop works end to end.
+## Notification Logic
 
-## Primary User
+A listing is hot when:
 
-Primary user:
+- score is at or above the configured hot threshold
+- status is not rejected
+- the listing and score have not already triggered a notification
 
-```text
-Hunter, actively looking for a New York City apartment under time pressure.
-```
+Notifications:
 
-Assumed user state:
+- Send through ntfy when `NYC_APT_RADAR_NTFY_TOPIC` is configured.
+- Record failed notification attempts when ntfy is not configured or delivery fails.
+- `npm run watch` should fail fast on failed readiness checks, including missing OpenAI or ntfy configuration.
+- Never send outreach messages.
+- `npm run notify:test` should fail loudly unless an ntfy topic is configured.
 
-- Stressed
-- Time-constrained
-- Decision-fatigued
-- Needs clarity
-- Needs confidence
-- Does not need more feeds to browse
+## OpenAI Boundary
 
-The product should make the search feel finite.
+Use OpenAI only for explicit extraction tasks where structure helps:
 
-## Version Zero Objective
+- Pasted listing text -> `ListingDraft[]`
+- Saved unstructured source text -> `ListingDraft[]`
 
-Version zero succeeds only if Hunter can:
+Do not use OpenAI for ranking, scoring, source access, stealth browsing, or automatic outreach.
 
-1. Paste five real listings.
-2. Parse them into structured fields.
-3. Edit parsed fields before saving.
-4. Score them against his search profile.
-5. Rank them.
-6. Move them through a pipeline.
-7. Draft outreach messages.
-8. Track tours.
-9. Kill weak candidates.
-10. Decide what to do today.
+Use Responses API Structured Outputs for schema-constrained extraction. Do not store OpenAI extraction calls for this private local workflow. Structured JSON source events may bypass OpenAI because they are already data, not messy text.
 
-## Non-Goals
+## Commands
 
-Do not build these in version zero:
+Required commands:
 
-- Automated scraping
-- Autonomous browsing
-- Automatic message sending
-- Public user accounts
-- Payments
-- Broker marketplace features
-- Native mobile application
-- Roommate matching
-- Lease signing
-- Sensitive document storage
-- Full New York City building-data warehouse
-- Fake live integrations
-
-Do not build a future company. Build the tool needed now.
-
-## Core Screens
-
-### Today
-
-The Today screen is the home screen. It answers:
-
-```text
-What should Hunter do right now?
-```
-
-Required sections:
-
-- Top candidates
-- Needs outreach
-- Needs follow-up
-- Scheduled tours
-- Recently killed listings
-- Application readiness
-- Daily briefing
-
-Each candidate card must show:
-
-- Score
-- Eligibility
-- Rent
-- Neighborhood
-- Status
-- Next action
-- Main risk
-- Move-in fit
-
-The Today screen should be calm to look at and sharp to use.
-
-### Inbox
-
-The Inbox captures raw listing material.
-
-Supported inputs:
-
-- Listing web address used only as context
-- Pasted listing text
-- Pasted broker email or message
-- Manual entry
-
-Primary action:
-
-```text
-Parse Listing
-```
-
-After parsing, the user must be able to edit every extracted field before saving.
-
-Screenshot upload may be stubbed for later, but it must be visibly disabled or labeled as a future feature.
-
-### Candidate Board
-
-The board is a status pipeline.
-
-Allowed listing statuses:
-
-- `new`
-- `contacted`
-- `tour_scheduled`
-- `toured`
-- `applied`
-- `dead`
-- `leased`
-
-Each board card must show:
-
-- Title
-- Rent
-- Neighborhood
-- Score
-- Eligibility
-- Status
-- Next action
-- Risk pill
-- Last updated time
-
-No card should be decorative filler.
-
-### Listing Detail
-
-The Listing Detail page is the decision page.
-
-Required sections:
-
-- Listing summary
-- Score breakdown
-- Hard filters
-- Strengths
-- Risks
-- Open questions
-- Outreach draft
-- Tour checklist
-- Notes
-- Building-risk panel
-- Decision actions
-
-Decision actions:
-
-- Contact
-- Follow up
-- Schedule tour
-- Mark toured
-- Apply
-- Kill
-
-### Tours
-
-A tour record includes:
-
-- Listing
-- Start time
-- End time
-- Notes
-- Checklist
-- Post-tour verdict
-
-Tour checklist:
-
-- Noise
-- Light
-- Smell
-- Water pressure
-- Heat or air conditioning
-- Cell signal
-- Laundry
-- Trash area
-- Package area
-- Street feel
-- Building condition
-- Stairs or elevator
-- Broker answers
-
-### Application Readiness
-
-Track readiness, not files.
-
-Checklist:
-
-- Photo identification ready
-- Employment letter ready
-- Recent pay stubs ready
-- Bank statements ready
-- Landlord reference ready
-- Credit screenshot or report ready
-- Guarantor documents ready, if needed
-- Pet documents ready, if needed
-
-The application must not upload or store these documents in version zero.
-
-## Visual System
-
-Stoop should feel like:
-
-```text
-Linear discipline + command-center density + New York City apartment urgency
-```
-
-It should not feel like:
-
-- Real estate Pinterest
-- A glassmorphism demo
-- A generic software as a service dashboard
-- An artificial intelligence chat wrapper
-
-Design principles:
-
-- Calm over cute
-- Clarity over decoration
-- Readability over visual flourish
-- Status and next action always visible
-- Dense apartment data without clutter
-- Mobile tour use is a first-class target
-
-Use:
-
-- shadcn/ui primitives
-- Compact cards and rows
-- Stable status badges
-- Clear primary and secondary buttons
-- Readable fields and review surfaces
-- Progress indicators for scoring and readiness
-- Neutral surfaces with restrained status color
-
-Critical listing data must never be buried or placed on decorative imagery.
-
-Required design files:
-
-- `components.json`
-- `src/components/ui/*`
-- `src/components/layout/app-shell.tsx`
-- `src/components/listings/listing-badges.tsx`
-- `src/app/globals.css`
-
-## Technical Stack
-
-Use one repository.
-
-Initial stack:
-
-- Next.js
-- TypeScript
-- Tailwind CSS, the Cascading Style Sheets utility framework
-- shadcn/ui
-- SQLite local database
-- Drizzle Object Relational Mapper
-- OpenAI server routes gated by `OPENAI_API_KEY`
-- Vitest
-
-Defer:
-
-- Supabase or Postgres
-- Authentication
-- Cloud sync
-- Mapbox or MapLibre
-- Playwright
-- Official New York City data integrations
-
-Optimize for a working personal tool first.
-
-## Domain Model
-
-These TypeScript shapes define the product contract. The database schema may differ internally, but it must preserve these semantics.
-
-### SearchProfile
-
-```ts
-type SearchProfile = {
-  id: string;
-  name: string;
-  targetMoveInDate: string | null;
-  maxRentMonthly: number | null;
-  budgetToleranceMonthly: number | null;
-  preferredNeighborhoods: string[];
-  acceptableNeighborhoods: string[];
-  hardNoNeighborhoods: string[];
-  commuteDestinations: Array<{
-    label: string;
-    address: string;
-    maxMinutes: number;
-  }>;
-  bedroomsMin: number | null;
-  bedroomsMax: number | null;
-  mustHaves: string[];
-  niceToHaves: string[];
-  hardNos: string[];
-};
-```
-
-### Listing
-
-```ts
-type ListingStatus =
-  | "new"
-  | "contacted"
-  | "tour_scheduled"
-  | "toured"
-  | "applied"
-  | "dead"
-  | "leased";
-
-type Listing = {
-  id: string;
-  sourceName: string | null;
-  sourceUrl: string | null;
-  rawText: string | null;
-
-  title: string;
-  address: string | null;
-  unit: string | null;
-  neighborhood: string | null;
-  borough: string | null;
-
-  rentMonthly: number | null;
-  netEffectiveRent: number | null;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  squareFeet: number | null;
-  availableDate: string | null;
-
-  contactName: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-
-  status: ListingStatus;
-
-  amenities: string[];
-  fees: string[];
-  redFlags: string[];
-  openQuestions: string[];
-
-  personalNotes: string | null;
-
-  createdAt: string;
-  updatedAt: string;
-};
-```
-
-### ListingEvaluation
-
-```ts
-type Confidence = "high" | "medium" | "low";
-
-type ListingEvaluation = {
-  id: string;
-  listingId: string;
-  eligible: boolean;
-  totalScore: number;
-  scoreBreakdown: {
-    location: number;
-    price: number;
-    apartmentFit: number;
-    moveInFit: number;
-    risk: number;
-    responsiveness: number;
-    subjectivePull: number;
-  };
-  hardFilters: string[];
-  summary: string;
-  strengths: string[];
-  risks: string[];
-  openQuestions: string[];
-  confidence: Confidence;
-  evaluatedAt: string;
-};
-```
-
-### ParsedListing
-
-```ts
-type ParsedListing = {
-  listing: Omit<Listing, "id" | "status" | "createdAt" | "updatedAt">;
-  confidence: Confidence;
-  fees: string[];
-  redFlags: string[];
-  openQuestions: string[];
-  parserMode: "openai" | "fallback";
-};
-```
-
-### OutreachMessage
-
-```ts
-type OutreachKind =
-  | "first_contact"
-  | "follow_up"
-  | "fee_clarification"
-  | "tour_request"
-  | "post_tour_interest";
-
-type OutreachMessage = {
-  id: string;
-  listingId: string;
-  kind: OutreachKind;
-  body: string;
-  approved: boolean;
-  sentAt: string | null;
-  createdAt: string;
-};
-```
-
-### Tour
-
-```ts
-type TourVerdict = "unknown" | "kill" | "maybe" | "apply";
-
-type Tour = {
-  id: string;
-  listingId: string;
-  startsAt: string;
-  endsAt: string | null;
-  notes: string | null;
-  verdict: TourVerdict;
-  checklist: Record<string, boolean>;
-  createdAt: string;
-  updatedAt: string;
-};
-```
-
-### DailyBrief
-
-```ts
-type DailyBrief = {
-  generatedAt: string;
-  bestCandidates: string[];
-  followUps: string[];
-  upcomingTours: string[];
-  deadOrRiskyListings: string[];
-  applicationReadinessGaps: string[];
-  recommendedNextActions: string[];
-};
-```
-
-## Scoring Model
-
-The score is deterministic. Model-generated text may explain or summarize the score, but the model does not own the score.
-
-Hard filters are separate from weighted score. A listing that fails a hard filter can be stored, but it must be marked ineligible and ranked accordingly.
-
-Hard filters:
-
-- Rent exceeds max budget plus tolerance.
-- Move-in date cannot work.
-- Neighborhood is in the hard-no list.
-- Address is missing after parse.
-- Fee language is suspicious or unresolved.
-- Scam language is obvious.
-- Listing is already unavailable.
-
-Weighted score:
-
-| Category | Points |
-| --- | ---: |
-| Location and commute | 30 |
-| Price | 25 |
-| Apartment fit | 15 |
-| Move-in fit | 10 |
-| Risk | 10 |
-| Responsiveness | 5 |
-| Subjective pull | 5 |
-
-Required output:
-
-- `eligible`
-- `totalScore`
-- `scoreBreakdown`
-- `hardFilters`
-- `strengths`
-- `risks`
-- `openQuestions`
-- `confidence`
-
-The score must be stable for the same listing and profile. Do not use model calls, current time beyond explicit inputs, random values, or hidden state to compute it.
-
-## Server Workflows
-
-Use plain typed server functions first. Do not use an agent framework in version zero.
-
-Required functions:
-
-```ts
-parseListing(input): ParsedListing
-scoreListing(listing, profile): ListingEvaluation
-draftOutreach(listing, profile, kind): OutreachMessage
-generateDailyBriefing(listings, tours, profile): DailyBrief
-```
-
-### Listing Parser
-
-Input:
-
-- Pasted text
-- Web address as context only
-- Broker email
-- Manual notes
-
-Output:
-
-- Structured listing fields
-- Confidence
-- Fees
-- Red flags
-- Open questions
-- Parser mode
-
-The parser must use deterministic fallback behavior when no OpenAI key exists.
-
-### Outreach Drafter
-
-Generate drafts for:
-
-- First contact
-- Follow-up
-- Fee clarification
-- Tour request
-- Post-tour interest
-
-The application must never send messages automatically.
-
-### Daily Briefing
-
-The daily briefing should produce:
-
-- Best candidates today
-- Dead or risky candidates
-- Follow-up queue
-- Tour schedule
-- Application-readiness gaps
-- Recommended next actions
-
-This is the emotional center of the product: it turns the apartment hunt from noise into a short action list.
-
-## New York City Rental Logic
-
-Encode these assumptions carefully:
-
-- Landlord-side broker fee language should be flagged for clarification.
-- Tenant-paid fees should be treated as unresolved until clear.
-- Rent stabilization should be `unknown` unless verified by an official or user-provided source.
-- Building complaints and violations are risk signals, not final judgments.
-- Official New York City Department of Housing Preservation and Development, Department of Buildings, and 311 data must be stubbed before it is claimed live.
-
-Do not claim certainty about rent stabilization, complaints, violations, or building risk unless the application has real source data and the result is implemented and tested.
-
-## Suggested Repository Structure
-
-```text
-stoop-app/
-  README.md
-  AGENTS.md
-  .env.example
-  docs/
-    product.md
-    design-system.md
-    agent-workflows.md
-    nyc-rental-rules.md
-    operating-loop.md
-  src/
-    app/
-      page.tsx
-      inbox/
-        page.tsx
-      board/
-        page.tsx
-      listings/
-        [id]/
-          page.tsx
-      tours/
-        page.tsx
-      api/
-        listings/
-          route.ts
-        agents/
-          parse-listing/
-            route.ts
-          draft-outreach/
-            route.ts
-          daily-briefing/
-            route.ts
-    components/
-      layout/
-        app-shell.tsx
-      ui/
-        button.tsx
-        card.tsx
-        badge.tsx
-        input.tsx
-        textarea.tsx
-        tabs.tsx
-        separator.tsx
-        checkbox.tsx
-        progress.tsx
-      listings/
-        listing-card.tsx
-        listing-badges.tsx
-        listing-score.tsx
-        listing-risk-panel.tsx
-      board/
-        candidate-board.tsx
-      inbox/
-        capture-listing-panel.tsx
-      briefing/
-        daily-briefing.tsx
-      tours/
-        tour-checklist.tsx
-    server/
-      db/
-        schema.ts
-        client.ts
-        seed.ts
-      agents/
-        parse-listing.ts
-        draft-outreach.ts
-        daily-briefing.ts
-      nyc/
-        building-risk.ts
-    lib/
-      scoring.ts
-      search-profile.ts
-      demo-data.ts
-      dates.ts
-      money.ts
-    styles/
-      globals.css
-  tests/
-    scoring.test.ts
-    parser-fallback.test.ts
-    fixtures/
-      listings/
-        broker-email.txt
-        streeteasy-like.txt
-        zillow-like.txt
+```bash
+npm run doctor
+npm run discover
+npm run watch
+npm run notify:test
+npm run radar
+npm run intake
+npm run listing:add
+npm run listing:update
+npm run listing:status
+npm run listing:draft
+npm run test
+npm run typecheck
+npm run build
 ```
 
 ## Acceptance Criteria
 
-Version zero is done when:
-
-- The application runs locally.
-- The interface is calm, dense, and fast to scan.
-- Hunter can paste a listing.
-- The application parses the listing.
-- Hunter can edit parsed fields.
-- The listing is saved.
-- The listing receives a deterministic score.
-- The listing appears on Today and Board.
-- Hunter can move it through statuses.
-- Hunter can generate outreach drafts.
-- Hunter can create a tour checklist.
+- The project runs locally from a clean install.
+- Source documents can be discovered from `data/source-events`.
+- One-off listing input works from a pasted URL, a file path, pasted text, or stdin.
+- The default source-events folder may include real user-provided leads, but not fake listings.
+- Configured public URLs can be fetched with plain HTTP.
+- One failed source does not stop other reachable sources from being processed.
+- A doctor command reports database, source, preference, commute-target, watch, and ntfy readiness.
+- A doctor command fails when `OPENAI_API_KEY` or `NYC_APT_RADAR_NTFY_TOPIC` is missing.
+- Duplicate source events do not create notification spam.
+- Listings are normalized and persisted.
+- Listings are scored and ranked.
+- Commute estimates include train lines, transfers, walking time, and total time.
+- Hot listings are sent to ntfy or recorded as failed notification attempts.
+- Outreach drafts are generated but never sent automatically.
+- CLI commands load local environment files before reading source, preference, database, and ntfy settings.
 - Tests pass.
-- The build passes.
-- `README.md` explains how to run the application.
-
-Version zero is not done if it is only a pretty mockup.
-
-## Operating Loop
-
-Daily cadence during the real search:
-
-- 08:00 import new listings.
-- 08:20 review ranked Today list.
-- 08:45 send approved outreach manually.
-- 11:30 follow up on nonresponses.
-- 13:00 schedule tours.
-- 18:00 tour, review, and kill weak candidates.
-- 21:00 update notes and decide tomorrow's actions.
-
-Daily targets:
-
-- Review 30 to 50 listings.
-- Capture 10 to 20 serious candidates.
-- Send 10 to 20 serious contacts.
-- Schedule as many tours as quality allows.
-- Kill weak candidates quickly.
-- Apply within 24 hours when a strong candidate clears the tour.
-
-The software exists to compress decision time.
+- Typecheck/build pass.
