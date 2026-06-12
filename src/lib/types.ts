@@ -162,7 +162,7 @@ export type SourceEvent = {
   updatedAt: string;
 };
 
-export const watchRunTypes = ["one_shot", "watch", "manual_import"] as const;
+export const watchRunTypes = ["one_shot", "watch"] as const;
 
 export type WatchRunType = (typeof watchRunTypes)[number];
 

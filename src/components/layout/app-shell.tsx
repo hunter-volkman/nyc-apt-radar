@@ -1,9 +1,7 @@
 import {
   CalendarCheck,
   ClipboardList,
-  Inbox,
   LayoutDashboard,
-  Plus,
   Radar,
 } from "lucide-react";
 import Link from "next/link";
@@ -21,7 +19,6 @@ const navItems: Array<{
 }> = [
   { id: "radar", label: "Radar", href: "/radar", icon: <Radar /> },
   { id: "today", label: "Today", href: "/", icon: <LayoutDashboard /> },
-  { id: "inbox", label: "Inbox", href: "/inbox", icon: <Inbox /> },
   { id: "board", label: "Board", href: "/board", icon: <ClipboardList /> },
   { id: "tours", label: "Tours", href: "/tours", icon: <CalendarCheck /> },
 ];
@@ -46,19 +43,19 @@ export function AppShell({
       <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center justify-between gap-3">
-            <Link className="flex min-w-0 items-center gap-3" href="/radar" aria-label="Apartment Radar">
+            <Link className="flex min-w-0 items-center gap-3" href="/radar" aria-label="NYC Apt Radar">
               <span className="radar-on-primary grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-sm font-semibold">
-                AR
+                NYC
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-semibold leading-5">Apartment Radar</span>
+                <span className="block text-sm font-semibold leading-5">NYC Apt Radar</span>
                 <span className="block truncate text-xs leading-4 text-muted-foreground">
-                  New leads, ranked fast.
+                  New listings, caught fast.
                 </span>
               </span>
             </Link>
             <div className="flex lg:hidden">
-              {action ?? <CaptureButton />}
+              {action ?? <BoardButton />}
             </div>
           </div>
 
@@ -85,7 +82,7 @@ export function AppShell({
           </nav>
 
           <div className="hidden flex-wrap justify-end gap-2 lg:flex">
-            {action ?? <CaptureButton />}
+            {action ?? <BoardButton />}
           </div>
         </div>
       </header>
@@ -106,12 +103,12 @@ export function AppShell({
   );
 }
 
-function CaptureButton() {
+function BoardButton() {
   return (
-    <Button asChild size="sm">
-      <Link href="/inbox">
-        <Plus />
-        Capture
+    <Button asChild size="sm" variant="outline">
+      <Link href="/board">
+        <ClipboardList />
+        Board
       </Link>
     </Button>
   );

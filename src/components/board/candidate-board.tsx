@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Inbox } from "lucide-react";
+import { Radar } from "lucide-react";
 import {
   EligibilityBadge,
   RiskBadge,
@@ -28,15 +28,15 @@ export function CandidateBoard({ columns }: { columns: BoardColumn[] }) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="radar-label">No real listings yet</p>
-              <h2 className="mt-1 text-lg font-semibold">Capture the first candidate from Inbox.</h2>
+              <h2 className="mt-1 text-lg font-semibold">No scanner matches have been saved.</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Paste listing text, broker messages, or manual notes, then review the parsed fields before saving.
+                The board fills after the radar loop processes source events into listings.
               </p>
             </div>
             <Button asChild className="w-full sm:w-auto">
-              <Link href="/inbox">
-                <Inbox />
-                Capture
+              <Link href="/radar">
+                <Radar />
+                Radar
               </Link>
             </Button>
           </div>

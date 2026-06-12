@@ -1,4 +1,4 @@
-import { Inbox, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Radar } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { CandidateBoard } from "@/components/board/candidate-board";
@@ -19,9 +19,9 @@ export default async function BoardPage() {
       action={
         <>
           <Button asChild size="sm">
-            <Link href="/inbox">
-              <Inbox />
-              Capture
+            <Link href="/radar">
+              <Radar />
+              Radar
             </Link>
           </Button>
           <Button asChild size="sm" variant="outline">

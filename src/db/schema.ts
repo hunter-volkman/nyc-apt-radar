@@ -112,7 +112,7 @@ export const watchRunsTable = sqliteTable(
     errorMessage: text("error_message"),
   },
   (table) => [
-    check("watch_runs_type_check", sql`${table.runType} in ('one_shot', 'watch', 'manual_import')`),
+    check("watch_runs_type_check", sql`${table.runType} in ('one_shot', 'watch')`),
     check("watch_runs_status_check", sql`${table.status} in ('running', 'succeeded', 'failed')`),
     index("watch_runs_started_at_idx").on(table.startedAt),
     index("watch_runs_status_idx").on(table.status),

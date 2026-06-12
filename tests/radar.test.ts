@@ -33,8 +33,8 @@ https://alerts.example/listings/strong-fit
 `;
 
 beforeAll(async () => {
-  tempDir = mkdtempSync(path.join(tmpdir(), "apartment-radar-"));
-  process.env.APARTMENT_RADAR_DATABASE_PATH = path.join(tempDir, "apartment-radar.sqlite");
+  tempDir = mkdtempSync(path.join(tmpdir(), "nyc-apt-radar-"));
+  process.env.NYC_APT_RADAR_DATABASE_PATH = path.join(tempDir, "nyc-apt-radar.sqlite");
   delete process.env.OPENAI_API_KEY;
 
   ({ runDatabaseSetup } = await import("../scripts/init-db"));
@@ -56,6 +56,11 @@ beforeAll(async () => {
 beforeEach(() => {
   runDatabaseSetup({ reset: true });
   vi.unstubAllGlobals();
+  delete process.env.NYC_APT_RADAR_NOTIFY_CHANNEL;
+  delete process.env.NYC_APT_RADAR_NTFY_BASE_URL;
+  delete process.env.NYC_APT_RADAR_NTFY_TOPIC;
+  delete process.env.NYC_APT_RADAR_SOURCE_DIR;
+  delete process.env.NYC_APT_RADAR_WATCH_INTERVAL_MINUTES;
   delete process.env.APARTMENT_RADAR_NOTIFY_CHANNEL;
   delete process.env.APARTMENT_RADAR_NTFY_BASE_URL;
   delete process.env.APARTMENT_RADAR_NTFY_TOPIC;
@@ -71,7 +76,7 @@ beforeEach(() => {
 afterAll(() => {
   vi.unstubAllGlobals();
   rmSync(tempDir, { force: true, recursive: true });
-  delete process.env.APARTMENT_RADAR_DATABASE_PATH;
+  delete process.env.NYC_APT_RADAR_DATABASE_PATH;
   delete process.env.STOOP_WATCH_INTERVAL_MINUTES;
 });
 
@@ -189,8 +194,8 @@ describe("radar run", () => {
     const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
 
     vi.stubGlobal("fetch", fetchMock);
-    process.env.APARTMENT_RADAR_NOTIFY_CHANNEL = "ntfy";
-    process.env.APARTMENT_RADAR_NTFY_TOPIC = "secret-topic";
+    process.env.NYC_APT_RADAR_NOTIFY_CHANNEL = "ntfy";
+    process.env.NYC_APT_RADAR_NTFY_TOPIC = "secret-topic";
 
     importSourceEvent({
       sourceName: "StreetEasy",
@@ -236,6 +241,10 @@ describe("radar configuration and messages", () => {
     process.env.APARTMENT_RADAR_WATCH_INTERVAL_MINUTES = "6";
 
     expect(getRadarWatchIntervalMinutes()).toBe(6);
+
+    process.env.NYC_APT_RADAR_WATCH_INTERVAL_MINUTES = "8";
+
+    expect(getRadarWatchIntervalMinutes()).toBe(8);
   });
 
   it("builds default and clarification copy without personal names", async () => {

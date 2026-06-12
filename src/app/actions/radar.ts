@@ -2,25 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { isListingStatus, updateListingStatus } from "@/lib/listing-repository";
-import {
-  importSourceEvent,
-  runRadarOnce,
-} from "@/lib/radar";
-
-export async function importSourceEventFromForm(formData: FormData) {
-  const result = importSourceEvent({
-    sourceName: readFormString(formData, "sourceName"),
-    sourceUrl: readFormString(formData, "sourceUrl"),
-    rawText: readRequiredFormString(formData, "rawText"),
-  });
-
-  await runRadarOnce({
-    runType: "manual_import",
-    eventsImported: result.wasDuplicate ? 0 : 1,
-  });
-
-  revalidateRadarViews(result.event.listingId);
-}
 
 export async function updateRadarListingStatusFromForm(formData: FormData) {
   const id = readRequiredFormString(formData, "id");
@@ -46,16 +27,11 @@ function revalidateRadarViews(id: string | null = null) {
 }
 
 function readRequiredFormString(formData: FormData, key: string) {
-  const value = readFormString(formData, key);
+  const value = formData.get(key);
 
-  if (!value) {
+  if (typeof value !== "string" || !value.trim()) {
     throw new Error(`${key} is required.`);
   }
 
-  return value;
-}
-
-function readFormString(formData: FormData, key: string) {
-  const value = formData.get(key);
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  return value.trim();
 }

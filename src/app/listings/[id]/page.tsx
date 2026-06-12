@@ -1,4 +1,4 @@
-import { ArrowLeft, Inbox } from "lucide-react";
+import { ArrowLeft, Radar } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -55,9 +55,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             </Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/inbox">
-              <Inbox />
-              Capture
+            <Link href="/radar">
+              <Radar />
+              Radar
             </Link>
           </Button>
         </>

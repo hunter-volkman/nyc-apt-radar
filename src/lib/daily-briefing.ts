@@ -21,7 +21,7 @@ export function buildDailyBriefing({
   ];
 
   if (topCandidates.length === 0) {
-    recommendedNextActions.push("Capture the first real listing from Inbox.");
+    recommendedNextActions.push("Keep the scanner running until a real listing clears the filters.");
   }
 
   return {

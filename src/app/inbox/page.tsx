@@ -5,9 +5,9 @@ export default function InboxPage() {
   return (
     <AppShell
       active="inbox"
-      eyebrow="Inbox and Capture"
-      title="Turn raw listing noise into structured candidates."
-      subtitle="Paste listing context, review every extracted field, and keep sensitive documents out of the app."
+      eyebrow="Fallback Parser"
+      title="Parse a one-off listing."
+      subtitle="This is a fallback surface. The primary workflow is the Radar loop."
     >
       <CaptureListingPanel />
     </AppShell>

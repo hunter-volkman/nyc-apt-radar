@@ -1,28 +1,21 @@
-# Apartment Radar Interface Style
+# NYC Apt Radar Interface Style
 
-Apartment Radar is a local-first NYC apartment scanner and command center. Its interface should be sober, dense, and operational.
+NYC Apt Radar is not a lease CRM. It is a scanner console for a time-sensitive NYC apartment hunt.
 
-Use shadcn/ui as the component foundation. Build with compact cards, badges, buttons, tabs, fields, checkboxes, separators, and progress indicators. Do not revive the old Liquid Glass direction.
+The interface should feel like a calm operations desk:
 
-Critical data must stay prominent:
+- Radar is the primary surface.
+- The first screen must show loop health, hot leads, review leads, last run, push state, and recent source events.
+- Avoid explanatory product copy. Use short operational labels.
+- Avoid fake controls. If the app cannot do something yet, do not render an active-looking control for it.
+- Keep rows dense, readable, and phone-safe.
+- Use shadcn cards, badges, buttons, separators, progress, and form controls where they are doing real work.
+- No decorative map panel, glassmorphism, giant hero, marketing section, or placeholder visualization.
+- Prioritize speed of action over completeness: open original listing, copy outreach, mark contacted, kill.
 
-- Rent
-- Neighborhood
-- Address
-- Score
-- Eligibility
-- Status
-- Risk
-- Next action
-- Tour time
-- Application-readiness gaps
+Copy rules:
 
-Screen standards:
-
-- Today is the command screen: lead with the best next decision, then candidates, queues, tours, risks, and readiness.
-- Board is a scan surface: stable status columns, dense listing rows, no decorative filler.
-- Inbox is a capture workflow: raw material first, editable review second, honest parser/upload stubs.
-- Listing Detail is a decision page: facts, scoring, risk, outreach draft, notes, tours, and status actions.
-- Tours must work on a phone: time, address, checklist progress, checklist rows, and verdict need to be readable while walking.
-
-Avoid marketing-page composition, giant hero sections, decorative glassmorphism, one-note dark dashboards, cards inside cards, vague instructional copy, and active-looking dead controls.
+- Say "hot lead", "needs review", "watch", "rejected", "last run", "source event", and "push".
+- Do not say "demo", "sample", "mock", or "manual import" in app-visible scanner UI.
+- Do not mention personal names in variables, copy, fixtures, or generated outreach.
+- Use "NYC Apt Radar" for the product name and `nyc-apt-radar` for package/repo naming.

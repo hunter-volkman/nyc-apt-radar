@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Apartment Radar",
+  title: "NYC Apt Radar",
   description: "New apartment leads, scanned and ranked.",
 };
 

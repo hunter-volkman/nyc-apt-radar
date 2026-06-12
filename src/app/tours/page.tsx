@@ -1,4 +1,4 @@
-import { Inbox } from "lucide-react";
+import { Radar } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { TourChecklist } from "@/components/tours/tour-checklist";
@@ -35,16 +35,16 @@ export default function ToursPage() {
               <CardContent className="grid gap-4 p-4 sm:p-5">
                 <div>
                   <p className="radar-label">No real tours yet</p>
-                  <h2 className="mt-1 text-xl font-semibold">Capture a listing, then move it to tour scheduled.</h2>
+                  <h2 className="mt-1 text-xl font-semibold">No tour-ready listings yet.</h2>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    This page only shows listings with real local tour scheduled or toured status.
+                    This page only shows listings with local tour scheduled or toured status.
                     There is no separate tour-time storage yet.
                   </p>
                 </div>
                 <Button asChild className="w-full sm:w-fit">
-                  <Link href="/inbox">
-                    <Inbox />
-                    Capture listing
+                  <Link href="/radar">
+                    <Radar />
+                    Open Radar
                   </Link>
                 </Button>
               </CardContent>

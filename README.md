@@ -1,8 +1,8 @@
-# Apartment Radar
+# NYC Apt Radar
 
-Apartment Radar is a local-first apartment scanner and command center for finding a New York City lease fast.
+NYC Apt Radar is a local-first scanner for finding a New York City lease before good listings disappear.
 
-It is not a marketplace, scraper, broker CRM, authentication product, payment product, or chatbot wrapper. Version zero is a working local Next.js app with local SQLite persistence, deterministic listing scoring, a shadcn/ui operational interface, a Radar scanner, Today command screen, Candidate Board, Inbox capture surface, Listing Detail page, Tours page, and application-readiness tracking.
+It is not a marketplace, broker CRM, authentication product, payment product, or chatbot wrapper. Version zero is a local Next.js app with SQLite persistence, deterministic scoring, source-event ingestion, ntfy push, copy-only outreach, and a dense Radar console.
 
 ## Run Locally
 
@@ -25,7 +25,7 @@ npm run db:reset
 
 ## Radar Loop
 
-Apartment Radar can ingest source messages from `.txt` or `.eml` files:
+NYC Apt Radar ingests source messages from `.txt` or `.eml` files:
 
 ```bash
 mkdir -p data/source-events
@@ -36,17 +36,17 @@ npm run radar:run
 For a local watch loop:
 
 ```bash
-APARTMENT_RADAR_WATCH_INTERVAL_MINUTES=10 npm run radar:watch
+NYC_APT_RADAR_WATCH_INTERVAL_MINUTES=10 npm run radar:watch
 ```
 
 Optional phone push through the ntfy iOS app:
 
 ```bash
-APARTMENT_RADAR_NOTIFY_CHANNEL=ntfy
-APARTMENT_RADAR_NTFY_TOPIC=apartment-radar-long-random-secret
+NYC_APT_RADAR_NOTIFY_CHANNEL=ntfy
+NYC_APT_RADAR_NTFY_TOPIC=nyc-apt-radar-long-random-secret
 ```
 
-Legacy `STOOP_*` environment variables are still read as compatibility aliases.
+Legacy `APARTMENT_RADAR_*` and `STOOP_*` environment variables are still read as compatibility aliases.
 
 ## Build
 
@@ -58,14 +58,13 @@ npm run build
 
 - Listings persist locally through SQLite and Drizzle.
 - Database initialization creates required tables without fake listings.
-- Radar imports source messages, dedupes them, scores listings, classifies hot leads, records notification history, and prepares copy-only outreach.
-- Today handles an empty database and points you to Radar.
-- Today ranks saved candidates and surfaces the next action, follow-ups, tour-status listings, risks, and readiness gaps from local records.
-- Candidate Board shows the exact allowed statuses: `new`, `contacted`, `tour_scheduled`, `toured`, `applied`, `dead`, and `leased`.
-- Candidate Board handles zero listings with a direct capture action.
+- Radar imports watched source messages, dedupes them, scores listings, classifies hot leads, records notification history, and prepares copy-only outreach.
+- Radar is the primary UI: loop health, action queue, source ledger, and push history.
+- Today and Board remain secondary local views over saved records.
+- Board shows the exact allowed statuses: `new`, `contacted`, `tour_scheduled`, `toured`, `applied`, `dead`, and `leased`.
 - Listing Detail shows summary, score breakdown, hard filters, strengths, risks, open questions, outreach facts, tour checklist template, notes, building-risk status, and decision actions.
 - Status changes persist through server actions.
-- Inbox parses pasted listing text or broker messages into an editable review, then saves the reviewed candidate.
+- Inbox remains a fallback parser surface, but it is no longer the primary scanner workflow.
 - Parser fallback works without `OPENAI_API_KEY`; when a key exists, the parser can use an OpenAI-backed extraction path and falls back safely on errors.
 - No automatic outreach sending exists. Copyable contact packets are shown for real listings only.
 - Daily briefing is generated deterministically from local listings and status queues.
@@ -75,9 +74,9 @@ npm run build
 
 ## Stubbed For Later Threads
 
-- Draft storage and screenshot upload are labeled as future/stubbed surfaces.
+- Draft storage and screenshot upload are not implemented.
 - Message sending remains out of scope; any future generated outreach must be copyable draft text only.
 - Tour time/checklist/verdict persistence is not implemented yet.
 - Application readiness persistence is not implemented yet.
 - Building-risk data is explicitly unknown; no live HPD, DOB, 311, or rent-stabilization integrations exist.
-- No Supabase, authentication, payments, scraping, autonomous browsing, automatic messaging, or sensitive document storage has been added.
+- No Supabase, authentication, payments, autonomous browsing, automatic messaging, or sensitive document storage has been added.

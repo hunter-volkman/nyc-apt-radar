@@ -4,11 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 import * as schema from "@/db/schema";
 
-const defaultDatabasePath = path.join(process.cwd(), "data", "apartment-radar.sqlite");
-const legacyDatabasePath = path.join(process.cwd(), "data", "stoop.sqlite");
+const defaultDatabasePath = path.join(process.cwd(), "data", "nyc-apt-radar.sqlite");
+const legacyApartmentRadarDatabasePath = path.join(process.cwd(), "data", "apartment-radar.sqlite");
+const legacyStoopDatabasePath = path.join(process.cwd(), "data", "stoop.sqlite");
 
 function resolveDatabasePath() {
-  const configuredPath = process.env.APARTMENT_RADAR_DATABASE_PATH ?? process.env.STOOP_DATABASE_PATH;
+  const configuredPath = process.env.NYC_APT_RADAR_DATABASE_PATH
+    ?? process.env.APARTMENT_RADAR_DATABASE_PATH
+    ?? process.env.STOOP_DATABASE_PATH;
 
   if (configuredPath) {
     return path.isAbsolute(configuredPath)
@@ -16,7 +19,11 @@ function resolveDatabasePath() {
       : path.join(/* turbopackIgnore: true */ process.cwd(), configuredPath);
   }
 
-  return fs.existsSync(legacyDatabasePath) ? legacyDatabasePath : defaultDatabasePath;
+  if (fs.existsSync(legacyApartmentRadarDatabasePath)) {
+    return legacyApartmentRadarDatabasePath;
+  }
+
+  return fs.existsSync(legacyStoopDatabasePath) ? legacyStoopDatabasePath : defaultDatabasePath;
 }
 
 const databasePath = resolveDatabasePath();

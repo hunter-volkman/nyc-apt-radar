@@ -134,14 +134,18 @@ type NtfyConfig = {
 };
 
 export function getRadarWatchIntervalMinutes(
-  value = process.env.APARTMENT_RADAR_WATCH_INTERVAL_MINUTES ?? process.env.STOOP_WATCH_INTERVAL_MINUTES,
+  value = process.env.NYC_APT_RADAR_WATCH_INTERVAL_MINUTES
+    ?? process.env.APARTMENT_RADAR_WATCH_INTERVAL_MINUTES
+    ?? process.env.STOOP_WATCH_INTERVAL_MINUTES,
 ) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultWatchIntervalMinutes;
 }
 
 export function getSourceDirectory(
-  value = process.env.APARTMENT_RADAR_SOURCE_DIR ?? process.env.STOOP_SOURCE_DIR,
+  value = process.env.NYC_APT_RADAR_SOURCE_DIR
+    ?? process.env.APARTMENT_RADAR_SOURCE_DIR
+    ?? process.env.STOOP_SOURCE_DIR,
 ) {
   const directory = cleanString(value) ?? defaultSourceDirectory;
 
@@ -845,16 +849,26 @@ async function sendPushNotification({
 
 function getNtfyConfig(): NtfyConfig | null {
   const channel = cleanString(
-    process.env.APARTMENT_RADAR_NOTIFY_CHANNEL ?? process.env.STOOP_NOTIFY_CHANNEL,
+    process.env.NYC_APT_RADAR_NOTIFY_CHANNEL
+      ?? process.env.APARTMENT_RADAR_NOTIFY_CHANNEL
+      ?? process.env.STOOP_NOTIFY_CHANNEL,
   )?.toLowerCase();
-  const topic = cleanString(process.env.APARTMENT_RADAR_NTFY_TOPIC ?? process.env.STOOP_NTFY_TOPIC);
+  const topic = cleanString(
+    process.env.NYC_APT_RADAR_NTFY_TOPIC
+      ?? process.env.APARTMENT_RADAR_NTFY_TOPIC
+      ?? process.env.STOOP_NTFY_TOPIC,
+  );
 
   if (channel !== "ntfy" || !topic) {
     return null;
   }
 
   return {
-    baseUrl: (cleanString(process.env.APARTMENT_RADAR_NTFY_BASE_URL ?? process.env.STOOP_NTFY_BASE_URL)
+    baseUrl: (cleanString(
+      process.env.NYC_APT_RADAR_NTFY_BASE_URL
+        ?? process.env.APARTMENT_RADAR_NTFY_BASE_URL
+        ?? process.env.STOOP_NTFY_BASE_URL,
+    )
       ?? defaultNtfyBaseUrl).replace(/\/+$/, ""),
     topic,
   };

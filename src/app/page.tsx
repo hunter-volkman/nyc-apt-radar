@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarCheck, ClipboardList, Inbox, Radar } from "lucide-react";
+import { ArrowRight, Bell, CalendarCheck, ClipboardList, Radar } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
@@ -103,7 +103,7 @@ export default async function TodayPage() {
                     actionHref="/radar"
                     actionLabel="Open Radar"
                     title="No ranked candidates yet"
-                    body="Import a source message in Radar. Apartment Radar will parse it, score it, and put it on the board."
+                    body="Keep the scanner loop running. Hot and review-worthy leads will appear here after source events are processed."
                   />
                 )}
               </div>
@@ -111,7 +111,7 @@ export default async function TodayPage() {
 
             <div className="grid gap-5 xl:grid-cols-2">
               <ActionQueue
-                icon={<Inbox />}
+                icon={<Bell />}
                 title="Needs outreach"
                 items={needsOutreach.map((listing) => ({
                   href: `/listings/${listing.listing.id}`,
@@ -153,8 +153,7 @@ function EmptyTodayCommand() {
           <p className="radar-label">Next concrete action</p>
           <h2 className="mt-1 text-xl font-semibold leading-7">Start the scanner loop.</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            The database is empty. Add source messages in Radar or drop alert files into the source directory,
-            then let Apartment Radar parse, score, and classify new leads.
+            The database is empty. Start the watcher and let NYC Apt Radar parse, score, and classify new source events.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -205,7 +204,7 @@ function PrimaryCommand({ bundle }: { bundle: ListingBundle }) {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/inbox">Capture another</Link>
+            <Link href="/radar">Open Radar</Link>
           </Button>
         </div>
       </CardContent>

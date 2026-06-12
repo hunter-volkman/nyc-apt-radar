@@ -124,7 +124,7 @@ export function CaptureListingPanel() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="radar-label">Step 1</p>
-              <CardTitle className="mt-1 text-xl font-semibold">Capture raw material</CardTitle>
+              <CardTitle className="mt-1 text-xl font-semibold">Parse one-off source text</CardTitle>
             </div>
             <Button disabled={!canParse || isParsing} onClick={handleParse} type="button" variant="secondary">
               {isParsing ? <Loader2 className="animate-spin" /> : <FileText />}
@@ -171,7 +171,7 @@ export function CaptureListingPanel() {
             </TabsContent>
           </Tabs>
 
-          <Field label="Manual notes">
+          <Field label="Additional context">
             <Textarea
               className="min-h-20 resize-y"
               onChange={(event) => setManualNotes(event.target.value)}
@@ -410,7 +410,7 @@ function parsedListingToReviewDraft(parsed: ParsedListing): ReviewDraft {
     fees: parsed.fees.join("\n"),
     redFlags: parsed.redFlags.join("\n"),
     openQuestions: parsed.openQuestions.join("\n"),
-    personalNotes: listing.personalNotes ?? "Saved from Inbox parser review.",
+    personalNotes: listing.personalNotes ?? "Saved from fallback parser review.",
   };
 }
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, Inbox } from "lucide-react";
+import { ArrowLeft, Radar } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,9 @@ export default function ListingNotFound() {
             </Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/inbox">
-              <Inbox />
-              Capture
+            <Link href="/radar">
+              <Radar />
+              Radar
             </Link>
           </Button>
         </>
@@ -34,7 +34,7 @@ export default function ListingNotFound() {
       <Card className="rounded-lg border-dashed shadow-sm">
         <CardContent className="p-4 sm:p-5">
           <p className="text-sm leading-6 text-muted-foreground">
-            No saved listing exists for this URL. Capture a real listing in Inbox or return to the board.
+            No saved listing exists for this URL. Return to Radar or the board.
           </p>
         </CardContent>
       </Card>
