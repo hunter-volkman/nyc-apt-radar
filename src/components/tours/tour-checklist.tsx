@@ -6,27 +6,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
-import { formatDateTimeLabel } from "@/lib/dates";
+import { tourChecklistItems } from "@/lib/tour-checklist";
 import { formatMoney } from "@/lib/money";
-import type { DemoListing, Tour } from "@/lib/types";
+import type { ListingView } from "@/lib/types";
 
-export function TourChecklist({ listing, tour }: { listing: DemoListing; tour: Tour }) {
-  const entries = Object.entries(tour.checklist);
-  const complete = entries.filter(([, checked]) => checked).length;
-  const progress = Math.round((complete / entries.length) * 100);
-
+export function TourChecklist({ listing }: { listing: ListingView }) {
   return (
     <Card className="rounded-lg shadow-sm" role="article">
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">{formatDateTimeLabel(tour.startsAt)}</p>
+            <p className="stoop-label">Tour status</p>
             <CardTitle className="mt-1 text-xl font-semibold">{listing.title}</CardTitle>
             <p className="mt-1 text-sm font-medium">
-              {formatMoney(listing.rentMonthly)} · {listing.neighborhood}, {listing.borough}
+              {formatMoney(listing.rentMonthly)} · {listing.neighborhood ?? "Neighborhood unknown"}
+              {listing.borough ? `, ${listing.borough}` : ""}
             </p>
-            <p className="mt-1 truncate text-xs text-muted-foreground">
+            <p className="mt-1 break-words text-xs text-muted-foreground">
               {listing.address ?? "Address missing"}
             </p>
           </div>
@@ -35,31 +31,21 @@ export function TourChecklist({ listing, tour }: { listing: DemoListing; tour: T
             <RiskBadge risk={listing.riskLevel}>{listing.mainRisk}</RiskBadge>
           </div>
         </div>
-        <div>
-          <div className="mb-1.5 flex items-center justify-between text-sm">
-            <span className="font-medium text-muted-foreground">Checklist</span>
-            <span className="font-semibold">
-              {complete}/{entries.length}
-            </span>
-          </div>
-          <Progress value={progress} />
-        </div>
       </CardHeader>
 
       <CardContent className="grid gap-4">
-        <div className="grid gap-2 sm:grid-cols-2">
-        {entries.map(([item, checked]) => (
-          <div className="flex min-h-11 items-center gap-3 rounded-md border bg-muted/30 p-3" key={item}>
-            <Checkbox checked={checked} disabled />
-            <span className="text-sm font-medium">{item}</span>
-          </div>
-        ))}
+        <div className="rounded-md border border-dashed bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
+          No persisted tour time, checklist state, notes, or verdict exists yet. This is a checklist template
+          for the real tour once those details are captured.
         </div>
 
-        <div className="rounded-md border bg-card p-3">
-          <p className="stoop-label">Post-tour verdict</p>
-          <p className="mt-1 text-sm font-semibold capitalize">{tour.verdict}</p>
-          {tour.notes ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{tour.notes}</p> : null}
+        <div className="grid gap-2 sm:grid-cols-2">
+          {tourChecklistItems.map((item) => (
+            <div className="flex min-h-11 items-center gap-3 rounded-md border bg-muted/30 p-3" key={item.id}>
+              <Checkbox checked={false} disabled />
+              <span className="text-sm font-medium">{item.label}</span>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

@@ -1,28 +1,22 @@
-import {
-  listings as demoListings,
-  searchProfile,
-  tours,
-} from "@/lib/demo-data";
 import { getListing, listListings } from "@/lib/listing-repository";
 import { scoreListing } from "@/lib/scoring";
+import { searchProfile } from "@/lib/search-profile";
 import {
   listingStatuses,
   statusLabels,
-  type DemoListing,
   type Listing,
   type ListingEvaluation,
   type ListingStatus,
+  type ListingView,
   type RiskLevel,
 } from "@/lib/types";
 
 export { listingStatuses, statusLabels };
 
 export type ListingBundle = {
-  listing: DemoListing;
+  listing: ListingView;
   evaluation: ListingEvaluation;
 };
-
-const demoListingById = new Map(demoListings.map((listing) => [listing.id, listing]));
 
 export function getAllListingBundles(): ListingBundle[] {
   return listListings().map(toListingBundle);
@@ -48,20 +42,16 @@ export function getTopCandidates(limit = 4) {
 
 export function getNeedsOutreach() {
   return getAllListingBundles()
-    .filter((bundle) => bundle.listing.status === "new" && bundle.evaluation.eligible)
-    .map((bundle) => bundle.listing);
+    .filter((bundle) => bundle.listing.status === "new" && bundle.evaluation.eligible);
 }
 
 export function getNeedsFollowUp() {
   return getAllListingBundles()
-    .filter((bundle) => bundle.listing.status === "contacted")
-    .map((bundle) => bundle.listing);
+    .filter((bundle) => bundle.listing.status === "contacted");
 }
 
 export function getRecentlyKilled() {
-  return getAllListingBundles()
-    .filter((bundle) => bundle.listing.status === "dead")
-    .map((bundle) => bundle.listing);
+  return getAllListingBundles().filter((bundle) => bundle.listing.status === "dead");
 }
 
 export function getBoardColumns() {
@@ -74,44 +64,45 @@ export function getBoardColumns() {
   }));
 }
 
-export function getToursWithListings() {
-  const listingById = new Map(getAllListingBundles().map((bundle) => [bundle.listing.id, bundle.listing]));
-
-  return tours
-    .map((tour) => ({
-      tour,
-      listing: listingById.get(tour.listingId),
-    }))
-    .filter((bundle): bundle is { tour: (typeof tours)[number]; listing: DemoListing } => Boolean(bundle.listing));
+export function getTourStatusBundles() {
+  return getAllListingBundles().filter((bundle) => (
+    bundle.listing.status === "tour_scheduled" || bundle.listing.status === "toured"
+  ));
 }
 
 function toListingBundle(listing: Listing): ListingBundle {
   const evaluation = scoreListing(listing, searchProfile);
 
   return {
-    listing: toDemoListing(listing, evaluation),
+    listing: toListingView(listing, evaluation),
     evaluation,
   };
 }
 
-function toDemoListing(listing: Listing, evaluation: ListingEvaluation): DemoListing {
-  const demoListing = demoListingById.get(listing.id);
-
+function toListingView(listing: Listing, evaluation: ListingEvaluation): ListingView {
   return {
     ...listing,
-    nextAction: demoListing?.nextAction ?? deriveNextAction(listing.status),
+    nextAction: deriveNextAction(listing.status, evaluation),
     mainRisk: deriveMainRisk(evaluation),
-    moveInFit: demoListing?.moveInFit ?? deriveMoveInFit(listing.availableDate),
+    moveInFit: deriveMoveInFit(listing.availableDate),
     riskLevel: deriveRiskLevel(evaluation),
     updatedAtLabel: formatUpdatedAtLabel(listing.updatedAt),
   };
 }
 
-function deriveNextAction(status: ListingStatus) {
+function deriveNextAction(status: ListingStatus, evaluation: ListingEvaluation) {
+  if (status === "new" && !evaluation.eligible) {
+    return "Resolve hard filters or kill this listing.";
+  }
+
+  if (status === "new" && evaluation.openQuestions.length > 0) {
+    return `Contact broker and resolve: ${evaluation.openQuestions[0]}`;
+  }
+
   const actions: Record<ListingStatus, string> = {
-    new: "Review score, resolve blockers, then decide whether to contact.",
+    new: "Contact broker with concrete tour windows.",
     contacted: "Follow up with specific tour windows.",
-    tour_scheduled: "Tour and verify the unresolved questions.",
+    tour_scheduled: "Tour and verify unresolved questions.",
     toured: "Record verdict and decide whether to apply.",
     applied: "Track response and keep application packet ready.",
     dead: "No action.",

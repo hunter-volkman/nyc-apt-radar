@@ -4,14 +4,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { DemoListing, ListingEvaluation } from "@/lib/types";
+import type { ListingEvaluation, ListingView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function ListingRiskPanel({
   listing,
   evaluation,
 }: {
-  listing: DemoListing;
+  listing: ListingView;
   evaluation: ListingEvaluation;
 }) {
   return (
@@ -25,7 +25,7 @@ export function ListingRiskPanel({
         <p className="stoop-label">Building risk</p>
         <CardTitle className="text-lg font-semibold">Unknown until sourced</CardTitle>
         <p className="text-sm leading-6 text-muted-foreground">
-          No live HPD, DOB, 311, or rent-stabilization data is connected in Thread 0.
+          No live HPD, DOB, 311, or rent-stabilization data is connected.
         </p>
       </CardHeader>
 

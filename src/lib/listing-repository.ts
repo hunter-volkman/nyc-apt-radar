@@ -122,15 +122,9 @@ export function deleteListing(id: string) {
   db.delete(listingsTable).where(eq(listingsTable.id, id)).run();
 }
 
-export function replaceListings(seedListings: Listing[]) {
+export function clearListings() {
   ensureDatabase();
   db.delete(listingsTable).run();
-
-  for (const listing of seedListings) {
-    db.insert(listingsTable).values(listingToRow(listing)).run();
-  }
-
-  return seedListings.length;
 }
 
 function makeListingId(title: string) {

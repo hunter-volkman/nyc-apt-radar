@@ -20,22 +20,19 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import {
-  applicationReadiness,
-  dailyBrief,
-  searchProfile,
-} from "@/lib/demo-data";
+import { getApplicationReadinessSummary } from "@/lib/application-readiness";
+import { buildDailyBriefing } from "@/lib/daily-briefing";
 import {
   getNeedsFollowUp,
   getNeedsOutreach,
   getRecentlyKilled,
   getTopCandidates,
-  getToursWithListings,
+  getTourStatusBundles,
   type ListingBundle,
 } from "@/lib/listing-view-models";
-import { formatDateTimeLabel } from "@/lib/dates";
+import { formatDateLabel } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
-import type { DemoListing } from "@/lib/types";
+import { searchProfile } from "@/lib/search-profile";
 
 export default async function TodayPage() {
   await connection();
@@ -44,12 +41,16 @@ export default async function TodayPage() {
   const primaryCandidate = topCandidates[0];
   const needsOutreach = getNeedsOutreach();
   const needsFollowUp = getNeedsFollowUp();
-  const scheduledTours = getToursWithListings().filter(
-    ({ listing }) => listing.status === "tour_scheduled",
-  );
+  const scheduledTours = getTourStatusBundles().filter(({ listing }) => listing.status === "tour_scheduled");
   const recentlyKilled = getRecentlyKilled();
-  const readyCount = applicationReadiness.filter((item) => item.ready).length;
-  const readinessGaps = applicationReadiness.filter((item) => !item.ready);
+  const readiness = getApplicationReadinessSummary();
+  const briefing = buildDailyBriefing({
+    topCandidates,
+    needsOutreach,
+    needsFollowUp,
+    tourStatusBundles: scheduledTours,
+    recentlyKilled,
+  });
 
   return (
     <AppShell
@@ -75,7 +76,7 @@ export default async function TodayPage() {
       }
     >
       <div className="grid gap-5">
-        {primaryCandidate ? <PrimaryCommand bundle={primaryCandidate} /> : null}
+        {primaryCandidate ? <PrimaryCommand bundle={primaryCandidate} /> : <EmptyTodayCommand />}
 
         <div className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
           <div className="grid gap-5">
@@ -93,9 +94,18 @@ export default async function TodayPage() {
                 </Button>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                {topCandidates.map(({ listing, evaluation }) => (
-                  <ListingCard evaluation={evaluation} key={listing.id} listing={listing} />
-                ))}
+                {topCandidates.length ? (
+                  topCandidates.map(({ listing, evaluation }) => (
+                    <ListingCard evaluation={evaluation} key={listing.id} listing={listing} />
+                  ))
+                ) : (
+                  <EmptyPanel
+                    actionHref="/inbox"
+                    actionLabel="Capture listing"
+                    title="No ranked candidates yet"
+                    body="Paste the first real listing in Inbox. Stoop will parse it, score it, and put it on the board."
+                  />
+                )}
               </div>
             </section>
 
@@ -104,18 +114,18 @@ export default async function TodayPage() {
                 icon={<Inbox />}
                 title="Needs outreach"
                 items={needsOutreach.map((listing) => ({
-                  href: `/listings/${listing.id}`,
-                  label: listing.title,
-                  detail: listing.nextAction,
+                  href: `/listings/${listing.listing.id}`,
+                  label: listing.listing.title,
+                  detail: listing.listing.nextAction,
                 }))}
               />
               <ActionQueue
                 icon={<ArrowRight />}
                 title="Needs follow-up"
                 items={needsFollowUp.map((listing) => ({
-                  href: `/listings/${listing.id}`,
-                  label: listing.title,
-                  detail: listing.nextAction,
+                  href: `/listings/${listing.listing.id}`,
+                  label: listing.listing.title,
+                  detail: listing.listing.nextAction,
                 }))}
               />
             </div>
@@ -124,14 +134,45 @@ export default async function TodayPage() {
           </div>
 
           <aside className="grid content-start gap-5">
-            <DailyBriefing brief={dailyBrief} />
-            <ReadinessCard gaps={readinessGaps} readyCount={readyCount} />
+            <DailyBriefing brief={briefing} />
+            <ReadinessCard readiness={readiness} />
             <SearchProfileCard />
             <KilledCard listings={recentlyKilled} />
           </aside>
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function EmptyTodayCommand() {
+  return (
+    <Card className="rounded-lg border-primary/20 shadow-sm">
+      <CardContent className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div>
+          <p className="stoop-label">Next concrete action</p>
+          <h2 className="mt-1 text-xl font-semibold leading-7">Capture the first real listing.</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+            The database is empty. Paste a real listing, broker message, or manual notes in Inbox, then review
+            every extracted field before saving the candidate.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Button asChild>
+            <Link href="/inbox">
+              <Inbox />
+              Capture listing
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/board">
+              <ClipboardList />
+              Empty board
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -169,6 +210,32 @@ function PrimaryCommand({ bundle }: { bundle: ListingBundle }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function EmptyPanel({
+  actionHref,
+  actionLabel,
+  body,
+  title,
+}: {
+  actionHref: string;
+  actionLabel: string;
+  body: string;
+  title: string;
+}) {
+  return (
+    <div className="rounded-lg border border-dashed bg-muted/30 p-4 md:col-span-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-semibold">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
+        </div>
+        <Button asChild className="w-full sm:w-auto" size="sm" variant="outline">
+          <Link href={actionHref}>{actionLabel}</Link>
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -214,7 +281,7 @@ function ActionQueue({
 function ToursCard({
   tours,
 }: {
-  tours: ReturnType<typeof getToursWithListings>;
+  tours: ReturnType<typeof getTourStatusBundles>;
 }) {
   return (
     <Card className="rounded-lg shadow-sm">
@@ -234,15 +301,15 @@ function ToursCard({
       </CardHeader>
       <CardContent className="grid gap-2">
         {tours.length ? (
-          tours.map(({ tour, listing }) => (
+          tours.map(({ listing }) => (
             <Link
               className="rounded-md border bg-muted/30 p-3 transition hover:border-foreground/25 hover:bg-accent/40"
               href={`/listings/${listing.id}`}
-              key={tour.id}
+              key={listing.id}
             >
               <p className="text-sm font-semibold">{listing.title}</p>
-              <p className="mt-1 text-sm font-medium">{formatDateTimeLabel(tour.startsAt)}</p>
-              <p className="mt-2 text-sm leading-5 text-muted-foreground">{tour.notes}</p>
+              <p className="mt-1 text-sm font-medium">{formatDateLabel(listing.availableDate)}</p>
+              <p className="mt-2 text-sm leading-5 text-muted-foreground">{listing.nextAction}</p>
             </Link>
           ))
         ) : (
@@ -265,23 +332,21 @@ function SearchProfileCard() {
       <CardContent className="grid grid-cols-2 gap-2 text-sm">
         <MiniMetric label="Max rent" value={formatMoney(searchProfile.maxRentMonthly)} />
         <MiniMetric label="Tolerance" value={formatMoney(searchProfile.budgetToleranceMonthly)} />
-        <MiniMetric label="Move-in" value="Jun 24" />
-        <MiniMetric label="Bedroom" value="1-2" />
+        <MiniMetric label="Move-in" value={formatDateLabel(searchProfile.targetMoveInDate)} />
+        <MiniMetric
+          label="Bedrooms"
+          value={`${searchProfile.bedroomsMin ?? "?"}-${searchProfile.bedroomsMax ?? "?"}`}
+        />
       </CardContent>
     </Card>
   );
 }
 
 function ReadinessCard({
-  gaps,
-  readyCount,
+  readiness,
 }: {
-  gaps: typeof applicationReadiness;
-  readyCount: number;
+  readiness: ReturnType<typeof getApplicationReadinessSummary>;
 }) {
-  const percent = Math.round((readyCount / applicationReadiness.length) * 100);
-  const blockers = gaps.filter((item) => item.blocking);
-
   return (
     <Card className="rounded-lg shadow-sm">
       <CardHeader>
@@ -289,21 +354,21 @@ function ReadinessCard({
           <div>
             <p className="stoop-label">Application readiness</p>
             <CardTitle className="mt-1 text-lg font-semibold">
-              {readyCount}/{applicationReadiness.length} ready
+              {readiness.trackedReadyCount}/{readiness.totalCount} tracked ready
             </CardTitle>
           </div>
-          <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900">
-            {blockers.length} blockers
+          <span className="rounded-md border bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+            Unset
           </span>
         </div>
-        <Progress value={percent} />
+        <Progress value={0} />
       </CardHeader>
       <CardContent className="grid gap-2">
-        {gaps.map((item) => (
+        {readiness.items.map((item) => (
           <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 p-3" key={item.id}>
             <span className="text-sm font-medium">{item.label}</span>
-            <span className={item.blocking ? "text-sm font-semibold text-red-700" : "text-sm font-semibold text-amber-800"}>
-              {item.blocking ? "Blocking" : "Later"}
+            <span className="text-sm font-semibold text-muted-foreground">
+              {item.requiredForMostApplications ? "Untracked" : "Conditional"}
             </span>
           </div>
         ))}
@@ -312,7 +377,7 @@ function ReadinessCard({
   );
 }
 
-function KilledCard({ listings }: { listings: DemoListing[] }) {
+function KilledCard({ listings }: { listings: ListingBundle[] }) {
   return (
     <Card className="rounded-lg border-red-200 bg-red-50/60 shadow-sm">
       <CardHeader>
@@ -321,7 +386,7 @@ function KilledCard({ listings }: { listings: DemoListing[] }) {
       </CardHeader>
       <CardContent className="grid gap-2">
         {listings.length ? (
-          listings.map((listing) => (
+          listings.map(({ listing }) => (
             <Link
               className="rounded-md border bg-card p-3 transition hover:border-red-300"
               href={`/listings/${listing.id}`}

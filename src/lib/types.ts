@@ -95,37 +95,6 @@ export type ListingEvaluation = {
   evaluatedAt: string;
 };
 
-export type OutreachKind =
-  | "first_contact"
-  | "follow_up"
-  | "fee_clarification"
-  | "tour_request"
-  | "post_tour_interest";
-
-export type OutreachMessage = {
-  id: string;
-  listingId: string;
-  kind: OutreachKind;
-  body: string;
-  approved: boolean;
-  sentAt: string | null;
-  createdAt: string;
-};
-
-export type TourVerdict = "unknown" | "kill" | "maybe" | "apply";
-
-export type Tour = {
-  id: string;
-  listingId: string;
-  startsAt: string;
-  endsAt: string | null;
-  notes: string | null;
-  verdict: TourVerdict;
-  checklist: Record<string, boolean>;
-  createdAt: string;
-  updatedAt: string;
-};
-
 export type DailyBrief = {
   generatedAt: string;
   bestCandidates: string[];
@@ -157,7 +126,7 @@ export type ParsedListing = {
 
 export type RiskLevel = "low" | "medium" | "high";
 
-export type DemoListing = Listing & {
+export type ListingView = Listing & {
   nextAction: string;
   mainRisk: string;
   moveInFit: string;
@@ -165,9 +134,13 @@ export type DemoListing = Listing & {
   updatedAtLabel: string;
 };
 
-export type ApplicationReadinessItem = {
+export type ApplicationReadinessChecklistItem = {
   id: string;
   label: string;
-  ready: boolean;
-  blocking: boolean;
+  requiredForMostApplications: boolean;
+};
+
+export type TourChecklistItem = {
+  id: string;
+  label: string;
 };
