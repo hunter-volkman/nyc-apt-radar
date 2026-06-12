@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Stoop",
-  description: "Your apartment hunt, ranked.",
+  title: "Apartment Radar",
+  description: "New apartment leads, scanned and ranked.",
 };
 
 export default function RootLayout({

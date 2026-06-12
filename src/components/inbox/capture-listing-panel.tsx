@@ -123,7 +123,7 @@ export function CaptureListingPanel() {
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="stoop-label">Step 1</p>
+              <p className="radar-label">Step 1</p>
               <CardTitle className="mt-1 text-xl font-semibold">Capture raw material</CardTitle>
             </div>
             <Button disabled={!canParse || isParsing} onClick={handleParse} type="button" variant="secondary">
@@ -195,7 +195,7 @@ export function CaptureListingPanel() {
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="stoop-label">Step 2</p>
+              <p className="radar-label">Step 2</p>
               <CardTitle className="mt-1 text-xl font-semibold">Review and save candidate</CardTitle>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -382,7 +382,7 @@ function ParseStatus({ error, parsed }: { error: string | null; parsed: ParsedLi
 function Field({ children, label }: { children: ReactNode; label: string }) {
   return (
     <label className="grid gap-1.5">
-      <span className="stoop-label">{label}</span>
+      <span className="radar-label">{label}</span>
       {children}
     </label>
   );

@@ -34,7 +34,7 @@ export default function ToursPage() {
             <Card className="rounded-lg border-dashed shadow-sm">
               <CardContent className="grid gap-4 p-4 sm:p-5">
                 <div>
-                  <p className="stoop-label">No real tours yet</p>
+                  <p className="radar-label">No real tours yet</p>
                   <h2 className="mt-1 text-xl font-semibold">Capture a listing, then move it to tour scheduled.</h2>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     This page only shows listings with real local tour scheduled or toured status.
@@ -54,7 +54,7 @@ export default function ToursPage() {
 
         <Card className="h-fit rounded-lg shadow-sm">
           <CardHeader>
-            <p className="stoop-label">Application readiness</p>
+            <p className="radar-label">Application readiness</p>
             <CardTitle className="text-lg font-semibold">
               {readiness.trackedReadyCount}/{readiness.totalCount} tracked ready
             </CardTitle>

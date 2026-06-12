@@ -1,9 +1,18 @@
 import { pathToFileURL } from "node:url";
+import { importSourceEventsFromDirectory } from "../src/lib/radar-source-files";
 import { runRadarOnce } from "../src/lib/radar";
 
 async function main() {
-  const result = await runRadarOnce({ runType: "one_shot" });
+  const imported = importSourceEventsFromDirectory();
+  const result = await runRadarOnce({
+    eventsImported: imported.eventsImported,
+    runType: "one_shot",
+  });
 
+  console.log(`Scanned ${imported.sourceDirectory}.`);
+  console.log(`${imported.filesSeen} source files seen.`);
+  console.log(`${imported.eventsImported} source events imported.`);
+  console.log(`${imported.duplicatesSkipped} source files already imported or duplicate.`);
   console.log(`Radar run ${result.status}.`);
   console.log(`${result.eventsSeen} pending source events seen.`);
   console.log(`${result.eventsProcessed} source events processed.`);

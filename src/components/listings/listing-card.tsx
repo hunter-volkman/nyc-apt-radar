@@ -59,7 +59,7 @@ export function ListingCard({
         <RiskBadge risk={listing.riskLevel}>{listing.mainRisk}</RiskBadge>
         <Separator />
         <div className="mt-auto">
-          <p className="stoop-label">Next action</p>
+          <p className="radar-label">Next action</p>
           <p className="mt-1 text-sm font-medium leading-5 text-foreground">{listing.nextAction}</p>
         </div>
       </CardContent>
@@ -70,7 +70,7 @@ export function ListingCard({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-muted/35 px-3 py-2">
-      <p className="stoop-label">{label}</p>
+      <p className="radar-label">{label}</p>
       <p className="mt-1 text-sm font-semibold leading-5 text-foreground">{value}</p>
     </div>
   );

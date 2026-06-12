@@ -1,10 +1,10 @@
-# Stoop Taste Bar
+# Apartment Radar Taste Bar
 
 The interface succeeds only if it makes the apartment hunt feel finite.
 
-Default verdict: cut decoration and surface judgment. A beautiful Stoop screen is not lush; it is calm, fast, and difficult to misread under pressure.
+Default verdict: cut decoration and surface judgment. A beautiful Apartment Radar screen is not lush; it is calm, fast, and difficult to misread under pressure.
 
-Good Stoop UI:
+Good Apartment Radar UI:
 
 - Makes the next action obvious.
 - Makes weak listings easy to kill.
@@ -14,7 +14,7 @@ Good Stoop UI:
 - Treats mobile as a real tour-day surface.
 - Labels stubs honestly instead of letting fake controls survive.
 
-Bad Stoop UI:
+Bad Apartment Radar UI:
 
 - Looks like a landing page.
 - Spends first-screen space on mood.

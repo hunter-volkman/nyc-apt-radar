@@ -15,6 +15,7 @@ export function rowToSourceEvent(row: SourceEventRow): SourceEvent {
     sourceUrl: row.sourceUrl,
     normalizedSourceUrl: row.normalizedSourceUrl,
     normalizedFingerprint: row.normalizedFingerprint,
+    sourceFilePath: row.sourceFilePath,
     rawText: row.rawText,
     status: row.status,
     duplicateOfEventId: row.duplicateOfEventId,
@@ -36,6 +37,7 @@ export function sourceEventToRow(event: SourceEvent): NewSourceEventRow {
     sourceUrl: event.sourceUrl,
     normalizedSourceUrl: event.normalizedSourceUrl,
     normalizedFingerprint: event.normalizedFingerprint,
+    sourceFilePath: event.sourceFilePath,
     rawText: event.rawText,
     status: event.status,
     duplicateOfEventId: event.duplicateOfEventId,
@@ -97,6 +99,7 @@ export function rowToNotification(row: NotificationRow): Notification {
     title: row.title,
     body: row.body,
     dedupeKey: row.dedupeKey,
+    errorMessage: row.errorMessage,
     createdAt: row.createdAt,
     recordedAt: row.recordedAt,
   };
@@ -113,6 +116,7 @@ export function notificationToRow(notification: Notification): NewNotificationRo
     title: notification.title,
     body: notification.body,
     dedupeKey: notification.dedupeKey,
+    errorMessage: notification.errorMessage,
     createdAt: notification.createdAt,
     recordedAt: notification.recordedAt,
   };

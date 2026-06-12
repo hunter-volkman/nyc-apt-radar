@@ -148,6 +148,7 @@ export type SourceEvent = {
   sourceUrl: string | null;
   normalizedSourceUrl: string | null;
   normalizedFingerprint: string;
+  sourceFilePath: string | null;
   rawText: string;
   status: SourceEventStatus;
   duplicateOfEventId: string | null;
@@ -189,11 +190,11 @@ export const notificationTypes = ["hot_listing", "needs_review", "watch_failure"
 
 export type NotificationType = (typeof notificationTypes)[number];
 
-export const notificationChannels = ["local"] as const;
+export const notificationChannels = ["local", "ntfy"] as const;
 
 export type NotificationChannel = (typeof notificationChannels)[number];
 
-export const notificationStatuses = ["recorded"] as const;
+export const notificationStatuses = ["recorded", "sent", "failed"] as const;
 
 export type NotificationStatus = (typeof notificationStatuses)[number];
 
@@ -207,6 +208,7 @@ export type Notification = {
   title: string;
   body: string;
   dedupeKey: string;
+  errorMessage: string | null;
   createdAt: string;
   recordedAt: string;
 };

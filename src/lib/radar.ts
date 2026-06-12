@@ -27,6 +27,8 @@ import {
   statusLabels,
   type Listing,
   type ListingEvaluation,
+  type NotificationChannel,
+  type NotificationStatus,
   type Notification,
   type NotificationType,
   type RadarClassification,
@@ -45,6 +47,8 @@ export const feeAddressClarificationCopy = `Hi, I'm interested in [address/unit]
 
 const defaultWatchIntervalMinutes = 10;
 const freshWindowHours = 24;
+const defaultSourceDirectory = "data/source-events";
+const defaultNtfyBaseUrl = "https://ntfy.sh";
 const missingAddressMarkers = [
   "address withheld",
   "withheld until",
@@ -59,6 +63,7 @@ const missingAddressMarkers = [
 export type SourceEventDraft = {
   sourceName?: string | null;
   sourceUrl?: string | null;
+  sourceFilePath?: string | null;
   rawText: string;
   importedAt?: string | null;
 };
@@ -113,11 +118,52 @@ export type RadarDashboard = {
   lastRun: WatchRun | null;
   notifications: Notification[];
   intervalMinutes: number;
+  sourceDirectory: string;
+  pushStatus: PushNotificationStatus;
 };
 
-export function getRadarWatchIntervalMinutes(value = process.env.STOOP_WATCH_INTERVAL_MINUTES) {
+export type PushNotificationStatus = {
+  channel: NotificationChannel;
+  configured: boolean;
+  label: string;
+};
+
+type NtfyConfig = {
+  baseUrl: string;
+  topic: string;
+};
+
+export function getRadarWatchIntervalMinutes(
+  value = process.env.APARTMENT_RADAR_WATCH_INTERVAL_MINUTES ?? process.env.STOOP_WATCH_INTERVAL_MINUTES,
+) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultWatchIntervalMinutes;
+}
+
+export function getSourceDirectory(
+  value = process.env.APARTMENT_RADAR_SOURCE_DIR ?? process.env.STOOP_SOURCE_DIR,
+) {
+  const directory = cleanString(value) ?? defaultSourceDirectory;
+
+  return resolveWorkspacePath(directory);
+}
+
+export function getPushNotificationStatus(): PushNotificationStatus {
+  const config = getNtfyConfig();
+
+  if (config) {
+    return {
+      channel: "ntfy",
+      configured: true,
+      label: "ntfy push configured",
+    };
+  }
+
+  return {
+    channel: "local",
+    configured: false,
+    label: "Push not configured",
+  };
 }
 
 export function importSourceEvent(draft: SourceEventDraft): SourceEventImportResult {
@@ -126,7 +172,18 @@ export function importSourceEvent(draft: SourceEventDraft): SourceEventImportRes
   const rawText = cleanString(draft.rawText);
 
   if (!rawText) {
-    throw new Error("Real alert text is required.");
+    throw new Error("Source message text is required.");
+  }
+
+  const sourceFilePath = normalizeSourceFilePath(draft.sourceFilePath);
+  const fileEvent = sourceFilePath ? findSourceEventBySourceFilePath(sourceFilePath) : null;
+
+  if (fileEvent) {
+    return {
+      event: fileEvent,
+      duplicateOf: fileEvent,
+      wasDuplicate: true,
+    };
   }
 
   const sourceUrl = cleanString(draft.sourceUrl) ?? extractFirstUrl(rawText);
@@ -134,13 +191,18 @@ export function importSourceEvent(draft: SourceEventDraft): SourceEventImportRes
   const normalizedFingerprint = createSourceFingerprint(rawText);
   const duplicateOf = findDuplicateSourceEvent(normalizedSourceUrl, normalizedFingerprint);
   const now = cleanString(draft.importedAt) ?? new Date().toISOString();
-  const sourceName = cleanString(draft.sourceName) ?? deriveSourceName(sourceUrl);
+  const sourceName = detectSourceName({
+    rawText,
+    sourceName: draft.sourceName,
+    sourceUrl,
+  });
   const event: SourceEvent = {
     id: makeId("source-event"),
     sourceName,
     sourceUrl,
     normalizedSourceUrl,
     normalizedFingerprint,
+    sourceFilePath,
     rawText,
     status: duplicateOf ? "duplicate" : "pending",
     duplicateOfEventId: duplicateOf?.id ?? null,
@@ -195,7 +257,7 @@ export async function runRadarOnce(options: RadarRunOptions = {}): Promise<Radar
   }
 
   if (failedEvents.length > 0) {
-    const recorded = recordNotification({
+    const recorded = await recordNotification({
       type: "watch_failure",
       sourceEventId: null,
       listingId: null,
@@ -238,6 +300,8 @@ export function getRadarDashboard(): RadarDashboard {
     lastRun: listWatchRuns(1)[0] ?? null,
     notifications: listNotifications(8),
     intervalMinutes: getRadarWatchIntervalMinutes(),
+    sourceDirectory: getSourceDirectory(),
+    pushStatus: getPushNotificationStatus(),
   };
 }
 
@@ -472,7 +536,13 @@ async function processSourceEvent(event: SourceEvent, now: Date): Promise<Proces
     processedAt: now.toISOString(),
     updatedAt: now.toISOString(),
   });
-  const notificationCreated = recordNotificationForClassification(updatedEvent, listing, classification, blockers);
+  const notificationCreated = await recordNotificationForClassification(
+    updatedEvent,
+    listing,
+    evaluation,
+    classification,
+    blockers,
+  );
 
   return {
     event: updatedEvent,
@@ -542,7 +612,7 @@ function fallbackNextAction(sourceEvent: SourceEvent) {
   }
 
   if (sourceEvent.status === "failed") {
-    return "Review the alert text and import it again if the source is still real.";
+    return "Review the source message and import it again if the listing is still real.";
   }
 
   if (sourceEvent.status === "duplicate") {
@@ -630,9 +700,10 @@ function markSourceEventFailed(event: SourceEvent, message: string, now: Date) {
   });
 }
 
-function recordNotificationForClassification(
+async function recordNotificationForClassification(
   sourceEvent: SourceEvent,
   listing: Listing,
+  evaluation: ListingEvaluation,
   classification: RadarClassification,
   blockers: string[],
 ) {
@@ -643,19 +714,31 @@ function recordNotificationForClassification(
   const type: NotificationType = classification === "hot" ? "hot_listing" : "needs_review";
   const title = classification === "hot" ? "Hot listing" : "Listing needs review";
   const blockerText = blockers.length ? blockers.join("; ") : "Ready for outreach.";
+  const location = listing.address ?? listing.neighborhood ?? "Location unknown";
+  const body = [
+    `${listing.title}`,
+    `Source: ${sourceEvent.sourceName}`,
+    `Rent: ${formatRentLabel(listing)}`,
+    `Location: ${location}`,
+    `Score: ${evaluation.totalScore}`,
+    `Action: ${blockerText}`,
+    sourceEvent.sourceUrl ? `Open: ${sourceEvent.sourceUrl}` : null,
+  ].filter((line): line is string => Boolean(line)).join("\n");
 
   return recordNotification({
     type,
     sourceEventId: sourceEvent.id,
     listingId: listing.id,
     title,
-    body: `${listing.title}: ${blockerText}`,
+    body,
     dedupeKey: `${type}:${listing.id}`,
+    clickUrl: sourceEvent.sourceUrl,
   });
 }
 
-function recordNotification({
+async function recordNotification({
   body,
+  clickUrl,
   dedupeKey,
   listingId,
   sourceEventId,
@@ -663,6 +746,7 @@ function recordNotification({
   type,
 }: {
   body: string;
+  clickUrl?: string | null;
   dedupeKey: string;
   listingId: string | null;
   sourceEventId: string | null;
@@ -680,22 +764,100 @@ function recordNotification({
   }
 
   const now = new Date().toISOString();
+  const pushResult = await sendPushNotification({ body, clickUrl, title });
   const notification: Notification = {
     id: makeId("notification"),
     sourceEventId,
     listingId,
     type,
-    channel: "local",
-    status: "recorded",
+    channel: pushResult.channel,
+    status: pushResult.status,
     title,
     body,
     dedupeKey,
+    errorMessage: pushResult.errorMessage,
     createdAt: now,
     recordedAt: now,
   };
 
   db.insert(notificationsTable).values(notificationToRow(notification)).run();
   return true;
+}
+
+async function sendPushNotification({
+  body,
+  clickUrl,
+  title,
+}: {
+  body: string;
+  clickUrl?: string | null;
+  title: string;
+}): Promise<{ channel: NotificationChannel; errorMessage: string | null; status: NotificationStatus }> {
+  const config = getNtfyConfig();
+
+  if (!config) {
+    return {
+      channel: "local",
+      errorMessage: null,
+      status: "recorded",
+    };
+  }
+
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "text/plain; charset=utf-8",
+      Priority: "high",
+      Tags: "house,rotating_light",
+      Title: title,
+    };
+
+    if (clickUrl) {
+      headers.Click = clickUrl;
+    }
+
+    const response = await fetch(`${config.baseUrl}/${encodeURIComponent(config.topic)}`, {
+      body,
+      headers,
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      return {
+        channel: "ntfy",
+        errorMessage: `ntfy returned ${response.status}`,
+        status: "failed",
+      };
+    }
+
+    return {
+      channel: "ntfy",
+      errorMessage: null,
+      status: "sent",
+    };
+  } catch (error) {
+    return {
+      channel: "ntfy",
+      errorMessage: getErrorMessage(error),
+      status: "failed",
+    };
+  }
+}
+
+function getNtfyConfig(): NtfyConfig | null {
+  const channel = cleanString(
+    process.env.APARTMENT_RADAR_NOTIFY_CHANNEL ?? process.env.STOOP_NOTIFY_CHANNEL,
+  )?.toLowerCase();
+  const topic = cleanString(process.env.APARTMENT_RADAR_NTFY_TOPIC ?? process.env.STOOP_NTFY_TOPIC);
+
+  if (channel !== "ntfy" || !topic) {
+    return null;
+  }
+
+  return {
+    baseUrl: (cleanString(process.env.APARTMENT_RADAR_NTFY_BASE_URL ?? process.env.STOOP_NTFY_BASE_URL)
+      ?? defaultNtfyBaseUrl).replace(/\/+$/, ""),
+    topic,
+  };
 }
 
 function findDuplicateSourceEvent(normalizedSourceUrl: string | null, normalizedFingerprint: string) {
@@ -716,6 +878,16 @@ function findDuplicateSourceEvent(normalizedSourceUrl: string | null, normalized
   return rows.find((row) => !row.duplicateOfEventId) ?? rows[0] ?? null;
 }
 
+function findSourceEventBySourceFilePath(sourceFilePath: string) {
+  const row = db
+    .select()
+    .from(sourceEventsTable)
+    .where(eq(sourceEventsTable.sourceFilePath, sourceFilePath))
+    .get();
+
+  return row ? rowToSourceEvent(row) : null;
+}
+
 function findExistingListingBySourceUrl(normalizedSourceUrl: string | null) {
   if (!normalizedSourceUrl) {
     return null;
@@ -724,18 +896,67 @@ function findExistingListingBySourceUrl(normalizedSourceUrl: string | null) {
   return listListings().find((listing) => normalizeSourceUrl(listing.sourceUrl) === normalizedSourceUrl) ?? null;
 }
 
+export function detectSourceName({
+  rawText,
+  sourceName,
+  sourceUrl,
+}: {
+  rawText?: string | null;
+  sourceName?: string | null;
+  sourceUrl?: string | null;
+}) {
+  const explicit = cleanString(sourceName);
+
+  if (explicit) {
+    return explicit;
+  }
+
+  const haystack = `${sourceUrl ?? ""}\n${rawText ?? ""}`.toLowerCase();
+  const sources = [
+    ["streeteasy", "StreetEasy"],
+    ["zillow", "Zillow"],
+    ["craigslist", "Craigslist"],
+    ["nooklyn", "Nooklyn"],
+  ] as const;
+  const match = sources.find(([needle]) => haystack.includes(needle));
+
+  if (match) {
+    return match[1];
+  }
+
+  return deriveSourceName(sourceUrl ?? extractFirstUrl(rawText ?? ""));
+}
+
 function deriveSourceName(sourceUrl: string | null) {
   const normalized = normalizeSourceUrl(sourceUrl);
 
   if (!normalized) {
-    return "Manual alert";
+    return "Source message";
   }
 
   try {
     return new URL(normalized).hostname.replace(/^www\./, "");
   } catch {
-    return "Manual alert";
+    return "Source message";
   }
+}
+
+function normalizeSourceFilePath(value: string | null | undefined) {
+  const cleaned = cleanString(value);
+
+  if (!cleaned) {
+    return null;
+  }
+
+  return resolveWorkspacePath(cleaned);
+}
+
+function resolveWorkspacePath(value: string) {
+  if (/^(?:\/|[A-Za-z]:[\\/])/.test(value)) {
+    return value;
+  }
+
+  return `${process.cwd()}/${value.replace(/^(?:\.\/)+/, "")}`;
 }
 
 function extractFirstUrl(text: string) {

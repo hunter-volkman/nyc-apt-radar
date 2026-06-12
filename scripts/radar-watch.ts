@@ -1,5 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { importSourceEventsFromDirectory } from "../src/lib/radar-source-files";
 import {
   getRadarWatchIntervalMinutes,
   runRadarOnce,
@@ -12,7 +13,9 @@ async function main() {
   console.log(`Radar watch started. Polling every ${intervalMinutes} minute${intervalMinutes === 1 ? "" : "s"}.`);
 
   while (true) {
+    const imported = importSourceEventsFromDirectory();
     const result = await runRadarOnce({
+      eventsImported: imported.eventsImported,
       runType: "watch",
       intervalMinutes,
     });
@@ -21,6 +24,8 @@ async function main() {
       [
         new Date().toISOString(),
         `status=${result.status}`,
+        `files=${imported.filesSeen}`,
+        `imported=${imported.eventsImported}`,
         `seen=${result.eventsSeen}`,
         `processed=${result.eventsProcessed}`,
         `created=${result.listingsCreated}`,

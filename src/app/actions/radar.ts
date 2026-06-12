@@ -16,7 +16,7 @@ export async function importSourceEventFromForm(formData: FormData) {
 
   await runRadarOnce({
     runType: "manual_import",
-    eventsImported: 1,
+    eventsImported: result.wasDuplicate ? 0 : 1,
   });
 
   revalidateRadarViews(result.event.listingId);

@@ -27,7 +27,7 @@ export function CandidateBoard({ columns }: { columns: BoardColumn[] }) {
         <section className="rounded-lg border border-dashed bg-muted/30 p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="stoop-label">No real listings yet</p>
+              <p className="radar-label">No real listings yet</p>
               <h2 className="mt-1 text-lg font-semibold">Capture the first candidate from Inbox.</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Paste listing text, broker messages, or manual notes, then review the parsed fields before saving.

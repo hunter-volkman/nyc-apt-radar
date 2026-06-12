@@ -91,7 +91,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 </div>
 
                 <Separator className="my-4" />
-                <p className="stoop-label">Next action</p>
+                <p className="radar-label">Next action</p>
                 <p className="mt-1 text-sm font-medium leading-6">{listing.nextAction}</p>
               </div>
             </CardContent>
@@ -108,7 +108,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
           <Card className="rounded-lg shadow-sm">
             <CardHeader>
-              <p className="stoop-label">Notes</p>
+              <p className="radar-label">Notes</p>
               <CardTitle className="text-lg font-semibold">Private readout</CardTitle>
             </CardHeader>
             <CardContent>
@@ -134,7 +134,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-muted/35 p-3">
-      <p className="stoop-label">{label}</p>
+      <p className="radar-label">{label}</p>
       <p className="mt-1 break-words text-sm font-semibold leading-5">{value}</p>
     </div>
   );
@@ -173,7 +173,7 @@ function OutreachDraftPanel({ listing }: { listing: ListingView }) {
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="stoop-label">Outreach draft</p>
+            <p className="radar-label">Outreach draft</p>
             <CardTitle className="mt-1 text-lg font-semibold">No stored draft for this listing</CardTitle>
           </div>
           <Badge className="rounded-md" variant="secondary">Draft only</Badge>
@@ -198,7 +198,7 @@ function OutreachDraftPanel({ listing }: { listing: ListingView }) {
 function ContactFact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border bg-muted/30 p-3">
-      <p className="stoop-label">{label}</p>
+      <p className="radar-label">{label}</p>
       <p className="mt-1 break-words text-sm font-semibold leading-5">{value}</p>
     </div>
   );
@@ -208,7 +208,7 @@ function DecisionActions({ listingId }: { listingId: string }) {
   return (
     <Card className="rounded-lg shadow-sm">
       <CardHeader>
-        <p className="stoop-label">Decision actions</p>
+        <p className="radar-label">Decision actions</p>
         <CardTitle className="text-lg font-semibold">Set status</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2">

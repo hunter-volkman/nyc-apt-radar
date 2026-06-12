@@ -1,6 +1,6 @@
-# Stoop Interface Style
+# Apartment Radar Interface Style
 
-Stoop is a local-first NYC apartment command center. Its interface should be sober, dense, and operational.
+Apartment Radar is a local-first NYC apartment scanner and command center. Its interface should be sober, dense, and operational.
 
 Use shadcn/ui as the component foundation. Build with compact cards, badges, buttons, tabs, fields, checkboxes, separators, and progress indicators. Do not revive the old Liquid Glass direction.
 

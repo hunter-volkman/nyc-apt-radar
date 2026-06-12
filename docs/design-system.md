@@ -1,6 +1,6 @@
-# Stoop shadcn/ui Design System
+# Apartment Radar shadcn/ui Design System
 
-Stoop now uses shadcn/ui as the component foundation. The interface should feel like a calm, dense apartment command center: fast to scan, hard to misread, and focused on the next decision.
+Apartment Radar uses shadcn/ui as the component foundation. The interface should feel like a calm, dense apartment scanner: fast to scan, hard to misread, and focused on the next decision.
 
 Primary files:
 
@@ -12,7 +12,7 @@ Primary files:
 
 Core principles:
 
-- Rent, neighborhood, address, score, eligibility, status, risk, next action, tour time, and readiness gaps stay visible.
+- Rent, neighborhood, address, source, score, classification, risk, next action, tour time, and readiness gaps stay visible.
 - Use shadcn cards, buttons, badges, inputs, textareas, tabs, checkboxes, separators, and progress bars before inventing primitives.
 - Keep cards shallow: do not nest cards inside cards.
 - Favor compact rows, stable columns, and obvious primary actions over hero sections or decorative effects.

@@ -1,4 +1,4 @@
-# Stoop Agent Guide
+# Apartment Radar Agent Guide
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
@@ -8,10 +8,10 @@ This version has breaking changes. Read the relevant guide in `node_modules/next
 
 ## Product Boundary
 
-Build Stoop as a local-first New York City apartment command center. The core loop is:
+Build Apartment Radar as a local-first New York City apartment scanner and command center. The core loop is:
 
 ```text
-capture listing -> parse listing -> score listing -> choose next action -> track outcome
+source message -> parse listing -> score listing -> notify if hot -> choose next action -> track outcome
 ```
 
 Do not add Supabase, authentication, payments, scraping, autonomous browsing, automatic message sending, public broker marketplace features, native mobile work, lease signing, roommate matching, fake live integrations, or sensitive document storage.
@@ -30,7 +30,7 @@ Preserve these root planning files unless the user explicitly asks to change the
 
 ## Visual Direction
 
-Use shadcn/ui as the design-system foundation in `src/components/ui/*`. Stoop should feel like a calm, dense, high-quality apartment command center, not a glassmorphism demo or generic SaaS dashboard. Keep rent, neighborhood, address, score, eligibility, status, risk, next action, tour time, and readiness gaps visible.
+Use shadcn/ui as the design-system foundation in `src/components/ui/*`. Apartment Radar should feel like a calm, dense, high-quality apartment scanner, not a glassmorphism demo or generic SaaS dashboard. Keep rent, neighborhood, address, score, eligibility, status, risk, next action, tour time, and readiness gaps visible.
 
 Avoid giant heroes, marketing composition, decorative glass, animation-heavy UI, cards nested inside cards, and controls that look active but do nothing. Stubbed controls must be disabled or clearly labeled.
 

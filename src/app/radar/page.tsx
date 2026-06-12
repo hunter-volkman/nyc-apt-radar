@@ -55,8 +55,8 @@ export default async function RadarPage() {
     <AppShell
       active="radar"
       eyebrow="Radar"
-      title="Watch real alerts and act fast."
-      subtitle="Paste real alert text, dedupe source events, classify hot listings, and keep the next action visible."
+      title="Scan new apartment leads."
+      subtitle="Watch source messages, dedupe listings, classify hot leads, and keep outreach one click away."
       action={
         <>
           <Button asChild size="sm">
@@ -81,9 +81,17 @@ export default async function RadarPage() {
             intervalMinutes={dashboard.intervalMinutes}
             lastRun={dashboard.lastRun}
             notificationCount={dashboard.notifications.length}
+            pushLabel={dashboard.pushStatus.label}
+            sourceDirectory={dashboard.sourceDirectory}
             totalEvents={dashboard.rows.length}
           />
         </div>
+
+        <RadarMapPanel
+          configured={Boolean(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN)}
+          hotCount={dashboard.rowsByClassification.hot.length}
+          totalCount={dashboard.rows.length}
+        />
 
         <div className="grid gap-4">
           {radarSections.map((section) => (
@@ -108,8 +116,8 @@ function ImportSourceEventPanel() {
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="stoop-label">Manual source-event import</p>
-            <CardTitle className="mt-1 text-lg font-semibold">Paste real alert text</CardTitle>
+            <p className="radar-label">Source message intake</p>
+            <CardTitle className="mt-1 text-lg font-semibold">Import a listing signal</CardTitle>
           </div>
           <Badge className="rounded-md" variant="secondary">No scraping</Badge>
         </div>
@@ -124,21 +132,21 @@ function ImportSourceEventPanel() {
               <Input className="h-10" name="sourceUrl" placeholder="https://..." />
             </Field>
           </div>
-          <Field label="Real alert text">
+          <Field label="Source message text">
             <Textarea
               className="min-h-36 resize-y"
               name="rawText"
-              placeholder="Paste the alert email, message, or listing text you received."
+              placeholder="Paste a saved-search email, listing notification, broker message, or listing text."
               required
             />
           </Field>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs leading-5 text-muted-foreground">
-              Imports create source events, process pending events once, and record duplicates locally.
+              The watcher also imports .txt and .eml files from the configured source directory.
             </p>
             <Button type="submit">
               <Radar />
-              Import Alert
+              Import Message
             </Button>
           </div>
         </form>
@@ -151,21 +159,27 @@ function RadarHealthPanel({
   intervalMinutes,
   lastRun,
   notificationCount,
+  pushLabel,
+  sourceDirectory,
   totalEvents,
 }: {
   intervalMinutes: number;
   lastRun: WatchRun | null;
   notificationCount: number;
+  pushLabel: string;
+  sourceDirectory: string;
   totalEvents: number;
 }) {
   return (
     <Card className="rounded-lg shadow-sm">
       <CardHeader>
-        <p className="stoop-label">Loop status</p>
-        <CardTitle className="text-lg font-semibold">Local watcher</CardTitle>
+        <p className="radar-label">Loop status</p>
+        <CardTitle className="text-lg font-semibold">Scanner loop</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3">
         <Metric label="Polling interval" value={`${intervalMinutes} min`} />
+        <Metric label="Source directory" value={sourceDirectory} />
+        <Metric label="Push status" value={pushLabel} />
         <Metric label="Source events" value={String(totalEvents)} />
         <Metric label="Notifications" value={String(notificationCount)} />
         <Separator />
@@ -188,6 +202,38 @@ function RadarHealthPanel({
             No radar run recorded yet.
           </p>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RadarMapPanel({
+  configured,
+  hotCount,
+  totalCount,
+}: {
+  configured: boolean;
+  hotCount: number;
+  totalCount: number;
+}) {
+  return (
+    <Card className="rounded-lg shadow-sm">
+      <CardContent className="grid gap-3 p-4 sm:p-5 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div>
+          <p className="radar-label">Map display</p>
+          <h2 className="mt-1 text-lg font-semibold">
+            {configured ? "Mapbox is configured" : "Mapbox not configured"}
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {configured
+              ? "Listing pins will appear here after coordinates are stored. Transit commute scoring is not calculated in this scanner pass."
+              : "Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable the map shell. Transit commute scoring remains a later dedicated thread."}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:w-64">
+          <Metric label="Hot leads" value={String(hotCount)} />
+          <Metric label="Total leads" value={String(totalCount)} />
+        </div>
       </CardContent>
     </Card>
   );
@@ -228,7 +274,7 @@ function RadarResultRow({ row }: { row: RadarRow }) {
   return (
     <div className="grid gap-3 border-b p-4 last:border-b-0 xl:grid-cols-[11rem_minmax(0,1fr)_8rem_minmax(10rem,0.8fr)_13rem] xl:items-start">
       <div className="grid gap-1">
-        <p className="stoop-label">Source</p>
+        <p className="radar-label">Source</p>
         <p className="truncate text-sm font-semibold" title={row.source}>{row.source}</p>
         <p className="text-xs text-muted-foreground">{row.ageLabel} old</p>
       </div>
@@ -252,12 +298,12 @@ function RadarResultRow({ row }: { row: RadarRow }) {
       </div>
 
       <div className="grid gap-1">
-        <p className="stoop-label">Score</p>
+        <p className="radar-label">Score</p>
         <p className="text-sm font-semibold">{row.scoreLabel}</p>
       </div>
 
       <div className="grid gap-1">
-        <p className="stoop-label">Blockers</p>
+        <p className="radar-label">Blockers</p>
         <div className="flex flex-wrap gap-1.5">
           {row.blockers.length ? (
             row.blockers.slice(0, 3).map((blocker) => (
@@ -277,7 +323,7 @@ function RadarResultRow({ row }: { row: RadarRow }) {
       </div>
 
       <div className="grid gap-2">
-        <p className="stoop-label">Next action</p>
+        <p className="radar-label">Next action</p>
         <p className="text-xs font-medium leading-5">{row.nextAction}</p>
         <div className="flex flex-wrap gap-2">
           {row.sourceUrl ? (
@@ -340,9 +386,17 @@ function NotificationHistory({
             <div className="rounded-md border bg-muted/30 p-3" key={notification.id}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">{notification.title}</p>
-                <Badge className="rounded-md" variant="outline">{notification.channel}</Badge>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge className="rounded-md" variant="outline">{notification.channel}</Badge>
+                  <Badge className="rounded-md" variant={notification.status === "failed" ? "destructive" : "secondary"}>
+                    {notification.status}
+                  </Badge>
+                </div>
               </div>
-              <p className="mt-1 text-sm leading-5 text-muted-foreground">{notification.body}</p>
+              <p className="mt-1 whitespace-pre-line text-sm leading-5 text-muted-foreground">{notification.body}</p>
+              {notification.errorMessage ? (
+                <p className="mt-2 text-xs text-destructive">{notification.errorMessage}</p>
+              ) : null}
               <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(notification.createdAt)}</p>
             </div>
           ))
@@ -380,8 +434,8 @@ function ClassificationBadge({ classification }: { classification: RadarClassifi
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold">{value}</span>
+      <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
+      <span className="min-w-0 break-words text-right text-sm font-semibold">{value}</span>
     </div>
   );
 }
@@ -389,7 +443,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 function Field({ children, label }: { children: ReactNode; label: string }) {
   return (
     <label className="grid gap-1.5">
-      <span className="stoop-label">{label}</span>
+      <span className="radar-label">{label}</span>
       {children}
     </label>
   );

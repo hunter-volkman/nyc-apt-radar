@@ -16,7 +16,7 @@ export function TourChecklist({ listing }: { listing: ListingView }) {
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="stoop-label">Tour status</p>
+            <p className="radar-label">Tour status</p>
             <CardTitle className="mt-1 text-xl font-semibold">{listing.title}</CardTitle>
             <p className="mt-1 text-sm font-medium">
               {formatMoney(listing.rentMonthly)} · {listing.neighborhood ?? "Neighborhood unknown"}
