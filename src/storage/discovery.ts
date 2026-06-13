@@ -234,6 +234,26 @@ function rowToSourceEvent(row: SourceEventRow): SourceEvent {
 
 function sourceFingerprint(draft: SourceEventDraft) {
   return createHash("sha256")
-    .update(`${draft.sourceId}\n${draft.sourceRef}\n${draft.rawText}`)
+    .update(`${draft.sourceId}\n${draft.sourceRef}\n${fingerprintText(draft.rawText)}`)
     .digest("hex");
+}
+
+function fingerprintText(rawText: string) {
+  const lines = rawText.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === "DISCOVERED_URLS:");
+
+  if (start === -1) {
+    return rawText;
+  }
+
+  const block = [lines[start] ?? ""];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim()) {
+      break;
+    }
+
+    block.push(line);
+  }
+
+  return block.join("\n");
 }

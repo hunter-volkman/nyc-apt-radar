@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run tests/radar-loop.test.ts",
+    "test": "vitest run",
     "reset": "tsx scripts/reset.ts",
     "doctor": "tsx scripts/doctor.ts",
     "agent:run": "tsx scripts/loop-once.ts",

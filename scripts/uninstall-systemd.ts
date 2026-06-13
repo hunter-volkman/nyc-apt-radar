@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 import "../src/config/env";
-import { defaultSystemdServicePath, defaultSystemdTimerPath } from "../src/automation/systemd";
+import { defaultSystemdServicePath, defaultSystemdTimerPath, validateSystemdUnitName } from "../src/automation/systemd";
 
-const unitName = readStringFlag("--unit-name") ?? "nyc-apt-radar";
+const unitName = validateSystemdUnitName(readStringFlag("--unit-name") ?? "nyc-apt-radar");
 const servicePath = defaultSystemdServicePath(unitName);
 const timerPath = defaultSystemdTimerPath(unitName);
 const dryRun = process.argv.includes("--dry-run");

@@ -17,12 +17,14 @@ const update: ListingFactUpdate = {
   address: args.address,
   neighborhood: args.neighborhood,
   borough: args.borough,
-  rent: numberArg(args.rent),
-  bedrooms: numberArg(args.bedrooms),
-  bathrooms: numberArg(args.bathrooms),
+  rent: numberArg(args.rent, "rent"),
+  bedrooms: numberArg(args.bedrooms, "bedrooms"),
+  bathrooms: numberArg(args.bathrooms, "bathrooms"),
   availableDate: args["available-date"],
   description: args.description,
   amenities: args.amenities === undefined ? undefined : listArg(args.amenities),
+  latitude: numberArg(args.latitude, "latitude", { min: -90, max: 90 }),
+  longitude: numberArg(args.longitude, "longitude", { min: -180, max: 180 }),
   contactName: args.contact,
   appointmentAt: args.appointment,
   notes: args.notes,
@@ -75,13 +77,22 @@ function readFlags(argv: string[]) {
   return flags;
 }
 
-function numberArg(value: string | undefined) {
+function numberArg(value: string | undefined, flagName: string, bounds?: { min: number; max: number }) {
   if (value === undefined) {
     return undefined;
   }
 
-  const parsed = Number(value.replace(/[$,]/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
+  const normalized = value.replace(/[$,]/g, "").trim();
+  const parsed = Number(normalized);
+  if (!normalized || !Number.isFinite(parsed)) {
+    fail(`Invalid number for --${flagName}: ${value}`);
+  }
+
+  if (bounds && (parsed < bounds.min || parsed > bounds.max)) {
+    fail(`Invalid number for --${flagName}: ${value}. Expected ${bounds.min} to ${bounds.max}.`);
+  }
+
+  return parsed;
 }
 
 function listArg(value: string | undefined) {
@@ -105,6 +116,8 @@ Useful flags:
   --rent
   --bedrooms
   --bathrooms
+  --latitude
+  --longitude
   --available-date YYYY-MM-DD
   --amenities "dishwasher,laundry"
   --pets cats_allowed|dogs_allowed|cats_and_dogs_allowed|no_pets|unknown

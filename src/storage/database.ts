@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
-import fs from "node:fs";
 import path from "node:path";
+import { applyOwnerOnlyFilePermissions, ensureOwnerOnlyDirectory, ensureRuntimeDataPermissions } from "./permissions";
 
 const defaultDatabasePath = path.join(process.cwd(), "data", "nyc-apt-radar-loop.sqlite");
 
@@ -12,10 +12,11 @@ export function getDatabasePath() {
 }
 
 const databasePath = getDatabasePath();
-fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+ensureRuntimeDataPermissions(databasePath);
 
 export const sqlite = new Database(databasePath);
 sqlite.pragma("journal_mode = WAL");
+ensureRuntimeDataPermissions(databasePath);
 
 export function ensureDatabase() {
   sqlite.exec(`
@@ -88,4 +89,13 @@ export function ensureDatabase() {
     CREATE INDEX IF NOT EXISTS notifications_listing_id_idx ON notifications (listing_id);
     CREATE INDEX IF NOT EXISTS notifications_created_at_idx ON notifications (created_at);
   `);
+  ensureRuntimeDataPermissions(databasePath);
+}
+
+export async function backupDatabase(destinationPath: string) {
+  ensureDatabase();
+  ensureOwnerOnlyDirectory(path.dirname(destinationPath));
+  await sqlite.backup(destinationPath);
+  applyOwnerOnlyFilePermissions(destinationPath);
+  return destinationPath;
 }

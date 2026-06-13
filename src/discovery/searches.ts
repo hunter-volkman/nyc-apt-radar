@@ -115,6 +115,10 @@ function validateSearchConfig(search: SearchConfig, sourcePath: string) {
     throw new Error(`Search config entries must be objects: ${sourcePath}`);
   }
 
+  if (search.resultLimit !== undefined && (!Number.isInteger(search.resultLimit) || search.resultLimit <= 0)) {
+    throw new Error(`Search ${search.id ?? "(unknown)"} resultLimit must be a positive integer.`);
+  }
+
   if (search.enabled === false) {
     return;
   }
@@ -127,8 +131,8 @@ function validateSearchConfig(search: SearchConfig, sourcePath: string) {
     throw new Error(`Search ${search.id} provider must be streeteasy.`);
   }
 
-  if (!isHttpUrl(search.searchUrl)) {
-    throw new Error(`Search ${search.id} needs an http(s) searchUrl.`);
+  if (!isHttpsUrl(search.searchUrl)) {
+    throw new Error(`Search ${search.id} needs an https searchUrl.`);
   }
 
   assertProviderUrl(search.provider, search.searchUrl, `Search ${search.id}`);
@@ -270,10 +274,9 @@ function decodeHtml(value: string) {
     .replaceAll("&gt;", ">");
 }
 
-function isHttpUrl(value: string | undefined) {
+function isHttpsUrl(value: string | undefined) {
   try {
-    const url = new URL(value ?? "");
-    return url.protocol === "http:" || url.protocol === "https:";
+    return new URL(value ?? "").protocol === "https:";
   } catch {
     return false;
   }

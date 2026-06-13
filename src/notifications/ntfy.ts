@@ -3,7 +3,13 @@ import { commuteSummary } from "../core/transit";
 import type { Listing } from "../core/listings";
 import type { PreferenceProfile } from "../core/preferences";
 import { fetchWithTimeout, readPositiveIntegerEnv } from "../config/timeouts";
-import { getNotification, recordNotification } from "../storage/notifications";
+import {
+  claimNotificationSend,
+  getNotification,
+  markNotificationFailed,
+  markNotificationSent,
+  recordNotification,
+} from "../storage/notifications";
 
 export type NotificationResult = {
   sent: boolean;
@@ -17,6 +23,12 @@ export type NtfyMessage = {
   body: string;
   priority?: "min" | "low" | "default" | "high" | "urgent";
   tags?: string;
+};
+
+export type NtfyConfig = {
+  topic: string;
+  baseUrl: string;
+  publishUrl: string;
 };
 
 export function ntfyMessageForListing(listing: Listing, profile: PreferenceProfile): NtfyMessage {
@@ -34,14 +46,54 @@ export function ntfyMessageForListing(listing: Listing, profile: PreferenceProfi
   };
 }
 
-export async function sendNtfyMessage(message: NtfyMessage) {
-  const topic = process.env.NYC_APT_RADAR_NTFY_TOPIC;
-  if (!topic) {
+export function readNtfyConfig(): NtfyConfig {
+  const topic = validateNtfyTopic(process.env.NYC_APT_RADAR_NTFY_TOPIC);
+  const baseUrl = validateNtfyBaseUrl(process.env.NYC_APT_RADAR_NTFY_BASE_URL ?? "https://ntfy.sh");
+
+  return {
+    topic,
+    baseUrl,
+    publishUrl: `${baseUrl}/${encodeURIComponent(topic)}`,
+  };
+}
+
+export function validateNtfyTopic(topic: string | undefined) {
+  const trimmed = topic?.trim();
+
+  if (!trimmed) {
     throw new Error("NYC_APT_RADAR_NTFY_TOPIC is required to send ntfy notifications.");
   }
 
-  const baseUrl = process.env.NYC_APT_RADAR_NTFY_BASE_URL ?? "https://ntfy.sh";
-  const response = await fetchWithTimeout(`${baseUrl.replace(/\/$/, "")}/${encodeURIComponent(topic)}`, {
+  if (/[/?#]/.test(trimmed)) {
+    throw new Error("NYC_APT_RADAR_NTFY_TOPIC must be a topic name, not a path or URL.");
+  }
+
+  return trimmed;
+}
+
+export function validateNtfyBaseUrl(baseUrl: string) {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    throw new Error("NYC_APT_RADAR_NTFY_BASE_URL must be a valid HTTPS origin, such as https://ntfy.sh.");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("NYC_APT_RADAR_NTFY_BASE_URL must use HTTPS.");
+  }
+
+  if (parsed.username || parsed.password || (parsed.pathname !== "" && parsed.pathname !== "/") || parsed.search || parsed.hash) {
+    throw new Error("NYC_APT_RADAR_NTFY_BASE_URL must be an HTTPS origin only, such as https://ntfy.sh.");
+  }
+
+  return parsed.origin;
+}
+
+export async function sendNtfyMessage(message: NtfyMessage) {
+  const config = readNtfyConfig();
+  const response = await fetchWithTimeout(config.publishUrl, {
     method: "POST",
     headers: {
       Title: message.title,
@@ -67,11 +119,17 @@ export async function notifyIfInteresting(listing: Listing, profile: PreferenceP
   }
 
   const dedupeKey = `hot:${listing.id}:${listing.score}`;
-  const existingNotification = getNotification(dedupeKey);
-  const hasTopic = Boolean(process.env.NYC_APT_RADAR_NTFY_TOPIC);
   const message = ntfyMessageForListing(listing, profile);
+  const claim = claimNotificationSend({
+    listingId: listing.id,
+    dedupeKey,
+    channel: "ntfy",
+    title: message.title,
+    body: message.body,
+  });
 
-  if (existingNotification?.status === "sent") {
+  if (!claim.claimed) {
+    const status = claim.notification?.status;
     recordNotification({
       listingId: listing.id,
       dedupeKey: `deduped:${listing.id}:${listing.score}`,
@@ -79,49 +137,24 @@ export async function notifyIfInteresting(listing: Listing, profile: PreferenceP
       status: "deduped",
       title: message.title,
       body: message.body,
-      errorMessage: "Notification already sent for this listing score.",
+      errorMessage: status === "sending"
+        ? "Notification is already being sent for this listing score."
+        : "Notification already sent for this listing score.",
     });
 
     return {
       sent: false,
       skipped: true,
       channel: "ntfy",
-      message: "Notification already sent for this score.",
-    };
-  }
-
-  if (!hasTopic) {
-    recordNotification({
-      listingId: listing.id,
-      dedupeKey,
-      channel: "ntfy",
-      status: "failed",
-      title: message.title,
-      body: message.body,
-      errorMessage: "Missing NYC_APT_RADAR_NTFY_TOPIC.",
-    });
-
-    return {
-      sent: false,
-      skipped: false,
-      channel: "ntfy",
-      message: "Missing NYC_APT_RADAR_NTFY_TOPIC.",
+      message: status === "sending"
+        ? "Notification is already being sent for this score."
+        : "Notification already sent for this score.",
     };
   }
 
   try {
     await sendNtfyMessage(message);
-
-    recordNotification({
-      listingId: listing.id,
-      dedupeKey,
-      channel: "ntfy",
-      status: "sent",
-      title: message.title,
-      body: message.body,
-      errorMessage: null,
-      sentAt: new Date().toISOString(),
-    });
+    markNotificationSent(dedupeKey);
 
     return {
       sent: true,
@@ -131,16 +164,7 @@ export async function notifyIfInteresting(listing: Listing, profile: PreferenceP
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-
-    recordNotification({
-      listingId: listing.id,
-      dedupeKey,
-      channel: "ntfy",
-      status: "failed",
-      title: message.title,
-      body: message.body,
-      errorMessage,
-    });
+    markNotificationFailed(dedupeKey, errorMessage);
 
     return {
       sent: false,

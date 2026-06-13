@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ensureDatabase, sqlite } from "./database";
 
-export type NotificationStatus = "sent" | "skipped" | "deduped" | "failed";
+export type NotificationStatus = "sending" | "sent" | "skipped" | "deduped" | "failed";
 
 export type NotificationRecord = {
   id: string;
@@ -29,6 +29,12 @@ type NotificationRow = {
   sent_at: string | null;
 };
 
+type NotificationDraft = Omit<NotificationRecord, "id" | "createdAt" | "sentAt"> & { sentAt?: string | null };
+
+export type NotificationClaim =
+  | { claimed: true; notification: NotificationRecord }
+  | { claimed: false; notification: NotificationRecord | null };
+
 export function getNotification(dedupeKey: string) {
   ensureDatabase();
   const row = sqlite.prepare("SELECT * FROM notifications WHERE dedupe_key = ?").get(dedupeKey) as NotificationRow | undefined;
@@ -45,7 +51,7 @@ export function hasNotification(dedupeKey: string, statuses?: NotificationStatus
   return statuses ? statuses.includes(notification.status) : true;
 }
 
-export function recordNotification(draft: Omit<NotificationRecord, "id" | "createdAt" | "sentAt"> & { sentAt?: string | null }) {
+export function recordNotification(draft: NotificationDraft) {
   ensureDatabase();
 
   const record: NotificationRecord = {
@@ -90,6 +96,87 @@ export function recordNotification(draft: Omit<NotificationRecord, "id" | "creat
   `).run(record);
 
   return record;
+}
+
+export function claimNotificationSend(draft: Omit<NotificationDraft, "status" | "errorMessage" | "sentAt">): NotificationClaim {
+  ensureDatabase();
+
+  const record: NotificationRecord = {
+    ...draft,
+    id: `notification-${randomUUID()}`,
+    status: "sending",
+    errorMessage: null,
+    createdAt: new Date().toISOString(),
+    sentAt: null,
+  };
+
+  const result = sqlite.prepare(`
+    INSERT INTO notifications (
+      id,
+      listing_id,
+      dedupe_key,
+      channel,
+      status,
+      title,
+      body,
+      error_message,
+      created_at,
+      sent_at
+    ) VALUES (
+      @id,
+      @listingId,
+      @dedupeKey,
+      @channel,
+      @status,
+      @title,
+      @body,
+      @errorMessage,
+      @createdAt,
+      @sentAt
+    )
+    ON CONFLICT(dedupe_key) DO UPDATE SET
+      listing_id = excluded.listing_id,
+      channel = excluded.channel,
+      status = excluded.status,
+      title = excluded.title,
+      body = excluded.body,
+      error_message = NULL,
+      sent_at = NULL
+    WHERE notifications.status = 'failed'
+  `).run(record);
+
+  const notification = getNotification(draft.dedupeKey);
+  return result.changes > 0
+    ? { claimed: true, notification: notification ?? record }
+    : { claimed: false, notification };
+}
+
+export function markNotificationSent(dedupeKey: string, sentAt = new Date().toISOString()) {
+  ensureDatabase();
+  sqlite.prepare(`
+    UPDATE notifications
+    SET
+      status = 'sent',
+      error_message = NULL,
+      sent_at = ?
+    WHERE dedupe_key = ? AND status = 'sending'
+  `).run(sentAt, dedupeKey);
+
+  return getNotification(dedupeKey);
+}
+
+export function markNotificationFailed(dedupeKey: string, errorMessage: string) {
+  ensureDatabase();
+  sqlite.prepare(`
+    UPDATE notifications
+    SET
+      status = 'failed',
+      error_message = ?,
+      sent_at = NULL
+    WHERE dedupe_key = ? AND status = 'sending'
+  `).run(errorMessage, dedupeKey);
+
+  return getNotification(dedupeKey);
 }
 
 export function listNotifications() {

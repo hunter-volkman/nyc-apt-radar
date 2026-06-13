@@ -5,6 +5,7 @@ import "../src/config/env";
 import { readAgentIntervalMinutes } from "../src/config/timeouts";
 import { buildLaunchAgentPlist, defaultLaunchAgentPath } from "../src/automation/launchd";
 import { getRadarReadiness } from "../src/diagnostics/readiness";
+import { ensureOwnerOnlyDirectory } from "../src/storage/permissions";
 
 const label = readStringFlag("--label") ?? "com.hunter.nyc-apt-radar";
 const intervalMinutes = readNumberFlag("--interval-minutes") ?? readWatchIntervalMinutes();
@@ -49,7 +50,7 @@ function main() {
   }
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.mkdirSync(path.join(process.cwd(), "data", "logs"), { recursive: true });
+  ensureOwnerOnlyDirectory(path.join(process.cwd(), "data", "logs"));
   fs.writeFileSync(outputPath, plist);
 
   console.log(`Wrote ${outputPath}`);

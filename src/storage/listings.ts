@@ -39,7 +39,7 @@ export function listListings() {
 }
 
 export function listRankedListings(profile = defaultPreferenceProfile, now = new Date()) {
-  const rescored = listListings().map((listing) => saveListing(scoreAndExplain(listing, profile, now)));
+  const rescored = listListings().map((listing) => scoreAndExplain(listing, profile, now));
   return rankListings(rescored);
 }
 
@@ -57,15 +57,7 @@ export function addListing(draft: ListingDraft, profile: PreferenceProfile = def
 export function upsertListing(draft: ListingDraft, profile: PreferenceProfile = defaultPreferenceProfile, now = new Date()) {
   const normalized = finalizeListing(draft, now);
   const existing = getListing(normalized.id);
-  const listing = scoreAndExplain(
-    {
-      ...normalized,
-      status: existing?.status ?? normalized.status,
-      firstSeenAt: existing?.firstSeenAt ?? normalized.firstSeenAt,
-    },
-    profile,
-    now,
-  );
+  const listing = scoreAndExplain(existing ? mergeListing(existing, normalized, draft) : normalized, profile, now);
 
   return saveListing(listing);
 }
@@ -253,6 +245,115 @@ function descriptionUpdate(
   }
 
   return [base, `[${now.toISOString()}] ${cleanedNotes}`].filter(Boolean).join("\n");
+}
+
+function mergeListing(existing: Listing, incoming: Listing, draft: ListingDraft): Listing {
+  return {
+    ...incoming,
+    source: mergeString(existing.source, incoming.source, draft.source),
+    sourceUrl: mergeNullableString(existing.sourceUrl, incoming.sourceUrl, draft.sourceUrl),
+    title: mergeTitle(existing.title, incoming.title, draft),
+    address: mergeNullableString(existing.address, incoming.address, draft.address),
+    neighborhood: mergeNullableString(existing.neighborhood, incoming.neighborhood, draft.neighborhood),
+    borough: mergeNullableString(existing.borough, incoming.borough, draft.borough),
+    rent: mergeNullableNumber(existing.rent, incoming.rent, draft.rent),
+    bedrooms: mergeNullableNumber(existing.bedrooms, incoming.bedrooms, draft.bedrooms),
+    bathrooms: mergeNullableNumber(existing.bathrooms, incoming.bathrooms, draft.bathrooms),
+    availableDate: mergeNullableDate(existing.availableDate, incoming.availableDate, draft.availableDate),
+    description: mergeDescription(existing.description, incoming.description, draft.description),
+    amenities: mergeAmenities(existing.amenities, incoming.amenities, draft.amenities),
+    pets: mergeConfirmedPolicy(existing.pets, incoming.pets),
+    feeStatus: mergeConfirmedPolicy(existing.feeStatus, incoming.feeStatus),
+    latitude: existing.latitude ?? incoming.latitude,
+    longitude: existing.longitude ?? incoming.longitude,
+    status: existing.status,
+    firstSeenAt: existing.firstSeenAt,
+    contactName: existing.contactName ?? incoming.contactName,
+    appointmentAt: existing.appointmentAt ?? incoming.appointmentAt,
+  };
+}
+
+function mergeString(existingValue: string, incomingValue: string, draftValue: string | null | undefined) {
+  return cleanString(draftValue) ? incomingValue : existingValue;
+}
+
+function mergeTitle(existingValue: string, incomingValue: string, draft: ListingDraft) {
+  const hasSourceTitle = Boolean(cleanString(draft.title) ?? cleanString(draft.address));
+  return hasSourceTitle && incomingValue !== "Untitled listing" ? incomingValue : existingValue;
+}
+
+function mergeNullableString(
+  existingValue: string | null,
+  incomingValue: string | null,
+  draftValue: string | null | undefined,
+) {
+  return cleanString(draftValue) ? incomingValue : existingValue;
+}
+
+function mergeNullableNumber(
+  existingValue: number | null,
+  incomingValue: number | null,
+  draftValue: number | string | null | undefined,
+) {
+  return cleanNumber(draftValue) !== null ? incomingValue : existingValue;
+}
+
+function mergeNullableDate(
+  existingValue: string | null,
+  incomingValue: string | null,
+  draftValue: string | null | undefined,
+) {
+  return cleanDate(draftValue) ? incomingValue : existingValue;
+}
+
+function mergeDescription(existingValue: string, incomingValue: string, draftValue: string | null | undefined) {
+  if (!isInformativeDescription(draftValue)) {
+    return existingValue;
+  }
+
+  if (!existingValue || isUrlOnlyDescription(existingValue)) {
+    return incomingValue;
+  }
+
+  if (!incomingValue || existingValue.includes(incomingValue)) {
+    return existingValue;
+  }
+
+  if (incomingValue.includes(existingValue)) {
+    return incomingValue;
+  }
+
+  return [existingValue, incomingValue].join("\n");
+}
+
+function mergeAmenities(existingValue: string[], incomingValue: string[], draftValue: string[] | null | undefined) {
+  if (!draftValue?.length) {
+    return existingValue;
+  }
+
+  return cleanList([...existingValue, ...incomingValue]);
+}
+
+function mergeConfirmedPolicy<T extends string>(existingValue: T, incomingValue: T) {
+  return existingValue === "unknown" ? incomingValue : existingValue;
+}
+
+function isInformativeDescription(value: string | null | undefined) {
+  const cleaned = cleanString(value);
+  return Boolean(cleaned) && !isUrlOnlyDescription(cleaned ?? "") && !isHttpUrl(cleaned ?? "");
+}
+
+function isUrlOnlyDescription(value: string) {
+  return value.startsWith("URL-only lead.");
+}
+
+function isHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function listingToParams(listing: Listing) {

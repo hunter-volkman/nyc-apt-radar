@@ -78,7 +78,7 @@ export async function runDiscoveryOnce(options: DiscoveryRunOptions = {}): Promi
     }
 
     try {
-      const drafts = await extractListingDrafts(document);
+      const drafts = appendUrlOnlyGapDrafts(await extractListingDrafts(document), document);
       result.listingsFound += drafts.length;
       const listings = drafts.map((draft) => upsertListing({
         ...draft,
@@ -219,6 +219,35 @@ function urlOnlyDraftsForDocument(document: { sourceType: string; sourceName: st
   return draft ? [draft] : [];
 }
 
+function appendUrlOnlyGapDrafts(
+  drafts: ListingDraft[],
+  document: { sourceName: string; urlOnlyLeadUrls?: string[] },
+) {
+  if (!document.urlOnlyLeadUrls?.length) {
+    return drafts;
+  }
+
+  const representedUrls = new Set(drafts
+    .map((draft) => canonicalListingUrl(draft.sourceUrl))
+    .filter((value): value is string => Boolean(value)));
+
+  const gapDrafts = document.urlOnlyLeadUrls
+    .map(urlSourceRef)
+    .filter((sourceUrl): sourceUrl is string => Boolean(sourceUrl))
+    .filter((sourceUrl) => {
+      const key = canonicalListingUrl(sourceUrl);
+      if (!key || representedUrls.has(key)) {
+        return false;
+      }
+
+      representedUrls.add(key);
+      return true;
+    })
+    .map((sourceUrl) => urlOnlyDraftForUrl(document.sourceName, sourceUrl));
+
+  return gapDrafts.length ? [...drafts, ...gapDrafts] : drafts;
+}
+
 function urlOnlyDraftForUrlOnlyDocument(document: { sourceType: string; sourceName: string; sourceRef: string; rawText: string }) {
   if (document.rawText.trim() !== document.sourceRef.trim()) {
     return null;
@@ -253,4 +282,19 @@ function humanizePathSegment(value: string) {
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
     .trim();
+}
+
+function canonicalListingUrl(rawUrl: string | null | undefined) {
+  if (!rawUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(rawUrl);
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
 }

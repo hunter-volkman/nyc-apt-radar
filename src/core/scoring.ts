@@ -57,23 +57,25 @@ export function scoreAndExplain(listing: Listing, profile: PreferenceProfile, no
 }
 
 function scorePrice(listing: Listing, profile: PreferenceProfile) {
+  const feePenalty = brokerFeePenalty(listing, profile);
+
   if (listing.rent === null) {
-    return 11;
+    return clamp(11 - feePenalty, 0, scoreWeights.priceFit);
   }
 
   if (listing.rent <= profile.budget.targetRent) {
-    return 25;
+    return clamp(25 - feePenalty, 0, scoreWeights.priceFit);
   }
 
   if (listing.rent <= profile.budget.maxRent) {
-    return 21;
+    return clamp(21 - feePenalty, 0, scoreWeights.priceFit);
   }
 
   if (listing.rent <= profile.budget.stretchRent) {
-    return 12;
+    return clamp(12 - feePenalty, 0, scoreWeights.priceFit);
   }
 
-  return 3;
+  return clamp(3 - feePenalty, 0, scoreWeights.priceFit);
 }
 
 function scoreLocation(listing: Listing, profile: PreferenceProfile) {
@@ -127,7 +129,8 @@ function scoreApartment(listing: Listing, profile: PreferenceProfile) {
 }
 
 function scorePets(pets: PetsPolicy, profile: PreferenceProfile) {
-  if (!profile.petRequirements.cats && !profile.petRequirements.dogs) {
+  const required = requiredPets(profile);
+  if (!required.length) {
     return scoreWeights.petFit;
   }
 
@@ -135,15 +138,7 @@ function scorePets(pets: PetsPolicy, profile: PreferenceProfile) {
     return 5;
   }
 
-  if (profile.petRequirements.cats && (pets === "cats_allowed" || pets === "cats_and_dogs_allowed")) {
-    return 10;
-  }
-
-  if (profile.petRequirements.dogs && (pets === "dogs_allowed" || pets === "cats_and_dogs_allowed")) {
-    return 10;
-  }
-
-  return 0;
+  return missingPetRequirements(pets, profile).length ? 0 : scoreWeights.petFit;
 }
 
 function scoreFreshness(listing: Listing, now: Date) {
@@ -203,9 +198,7 @@ export function findDealbreakers(listing: Listing, profile: PreferenceProfile) {
     dealbreakers.push("Neighborhood is on the avoid list.");
   }
 
-  if (profile.petRequirements.cats && listing.pets === "no_pets") {
-    dealbreakers.push("Cats are not allowed.");
-  }
+  dealbreakers.push(...petDealbreakers(listing.pets, profile));
 
   for (const dealbreaker of profile.dealbreakers) {
     const normalized = normalize(dealbreaker);
@@ -235,7 +228,7 @@ function explainScore(
   parts.push(locationPhrase(listing, profile));
   parts.push(commutePhrase(listing, profile, confidence));
   parts.push(petPhrase(listing.pets, profile));
-  parts.push(feePhrase(listing.feeStatus));
+  parts.push(feePhrase(listing.feeStatus, profile));
 
   if (listing.firstSeenAt) {
     parts.push("freshness captured");
@@ -294,7 +287,8 @@ function commutePhrase(listing: Listing, profile: PreferenceProfile, confidence:
 }
 
 function petPhrase(pets: PetsPolicy, profile: PreferenceProfile) {
-  if (!profile.petRequirements.cats && !profile.petRequirements.dogs) {
+  const required = requiredPets(profile);
+  if (!required.length) {
     return "no pet requirement";
   }
 
@@ -302,24 +296,27 @@ function petPhrase(pets: PetsPolicy, profile: PreferenceProfile) {
     return "pet policy unknown";
   }
 
-  if (pets === "no_pets") {
-    return "pets not allowed";
+  const missing = missingPetRequirements(pets, profile);
+  if (!missing.length) {
+    return required.length === 2
+      ? "cats and dogs allowed"
+      : required[0] === "cats" ? "cats allowed" : "dogs allowed";
   }
 
-  if (pets === "cats_allowed" || pets === "cats_and_dogs_allowed") {
-    return "cats allowed";
+  if (missing.length === 2) {
+    return "cats and dogs not allowed";
   }
 
-  return "cat policy unclear";
+  return missing[0] === "cats" ? "cats not allowed" : "dogs not allowed";
 }
 
-function feePhrase(feeStatus: FeeStatus) {
+function feePhrase(feeStatus: FeeStatus, profile: PreferenceProfile) {
   if (feeStatus === "no_fee") {
     return "no fee";
   }
 
   if (feeStatus === "broker_fee") {
-    return "broker fee present";
+    return profile.feePreference === "no_fee" ? "broker fee conflicts with no-fee preference" : "broker fee present";
   }
 
   return "fee status unknown";
@@ -378,4 +375,53 @@ function unique(values: string[]) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+function brokerFeePenalty(listing: Listing, profile: PreferenceProfile) {
+  return profile.feePreference === "no_fee" && listing.feeStatus === "broker_fee" ? 5 : 0;
+}
+
+function requiredPets(profile: PreferenceProfile): Array<"cats" | "dogs"> {
+  return [
+    profile.petRequirements.cats ? "cats" : null,
+    profile.petRequirements.dogs ? "dogs" : null,
+  ].filter((pet): pet is "cats" | "dogs" => pet !== null);
+}
+
+function missingPetRequirements(pets: PetsPolicy, profile: PreferenceProfile) {
+  const allowed = allowedPets(pets);
+  return requiredPets(profile).filter((pet) => !allowed.has(pet));
+}
+
+function allowedPets(pets: PetsPolicy) {
+  if (pets === "cats_and_dogs_allowed") {
+    return new Set(["cats", "dogs"] as const);
+  }
+
+  if (pets === "cats_allowed") {
+    return new Set(["cats"] as const);
+  }
+
+  if (pets === "dogs_allowed") {
+    return new Set(["dogs"] as const);
+  }
+
+  return new Set<"cats" | "dogs">();
+}
+
+function petDealbreakers(pets: PetsPolicy, profile: PreferenceProfile) {
+  if (pets === "unknown") {
+    return [];
+  }
+
+  const missing = missingPetRequirements(pets, profile);
+  if (!missing.length) {
+    return [];
+  }
+
+  if (missing.length === 2) {
+    return ["Cats and dogs are not allowed."];
+  }
+
+  return missing[0] === "cats" ? ["Cats are not allowed."] : ["Dogs are not allowed."];
 }

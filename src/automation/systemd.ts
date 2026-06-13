@@ -14,16 +14,21 @@ export type SystemdUnitOptions = {
 const defaultUnitName = "nyc-apt-radar";
 const defaultUnitDirectory = "/etc/systemd/system";
 const defaultPath = "/usr/local/bin:/usr/bin:/bin";
+const unitNamePattern = /^[A-Za-z0-9][A-Za-z0-9_.@-]{0,127}$/;
 
 export function defaultSystemdServicePath(unitName = defaultUnitName) {
-  return path.join(defaultUnitDirectory, `${unitName}.service`);
+  return path.join(defaultUnitDirectory, `${validateSystemdUnitName(unitName)}.service`);
 }
 
 export function defaultSystemdTimerPath(unitName = defaultUnitName) {
-  return path.join(defaultUnitDirectory, `${unitName}.timer`);
+  return path.join(defaultUnitDirectory, `${validateSystemdUnitName(unitName)}.timer`);
 }
 
 export function buildSystemdService(options: SystemdUnitOptions) {
+  if (options.unitName) {
+    validateSystemdUnitName(options.unitName);
+  }
+
   const user = options.user ?? "nyc-apt-radar";
   const environmentFile = options.environmentFile ?? path.join(options.cwd, ".env");
   const npmScript = options.npmScript ?? "agent:run";
@@ -56,7 +61,7 @@ export function buildSystemdService(options: SystemdUnitOptions) {
 }
 
 export function buildSystemdTimer(options: SystemdUnitOptions) {
-  const unitName = options.unitName ?? defaultUnitName;
+  const unitName = validateSystemdUnitName(options.unitName ?? defaultUnitName);
   const intervalMinutes = Math.max(1, Math.round(options.intervalMinutes ?? 60));
 
   return [
@@ -74,4 +79,12 @@ export function buildSystemdTimer(options: SystemdUnitOptions) {
     "WantedBy=timers.target",
     "",
   ].join("\n");
+}
+
+export function validateSystemdUnitName(unitName: string) {
+  if (!unitNamePattern.test(unitName) || unitName.includes("..") || unitName.endsWith(".service") || unitName.endsWith(".timer")) {
+    throw new Error("Invalid systemd unit name. Use a base name like nyc-apt-radar with only letters, numbers, dots, underscores, dashes, or @.");
+  }
+
+  return unitName;
 }

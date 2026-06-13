@@ -22,6 +22,7 @@ console.log("");
 
 for (const [index, listing] of listings.entries()) {
   console.log(`#${index + 1} ${listing.score}/100  ${money(listing.rent)}  ${listing.title}`);
+  console.log(`    ID: ${listing.id}`);
   console.log(`    ${listing.neighborhood ?? "Neighborhood unknown"} | ${listing.status} | ${listing.source}`);
   console.log(`    ${listing.address ?? "Address unknown"}`);
   console.log(`    ${listing.scoreExplanation}`);
@@ -35,6 +36,9 @@ for (const [index, listing] of listings.entries()) {
   if (listing.sourceUrl) {
     console.log(`    URL: ${listing.sourceUrl}`);
   }
+  console.log(`    Follow up: npm run listing:status -- ${listing.id} interested`);
+  console.log(`               npm run listing:draft -- ${listing.id}`);
+  console.log(`               npm run listing:update -- ${listing.id} --notes "Reached out; waiting on reply."`);
   console.log("");
 }
 

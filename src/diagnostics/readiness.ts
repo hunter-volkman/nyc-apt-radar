@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { readAgentIntervalMinutes } from "../config/timeouts";
-import { loadPreferenceProfile } from "../core/preferences";
+import { getPreferencesPath, hasPreferenceConfigFile, loadPreferenceProfile } from "../core/preferences";
 import {
   activeSearchConfigs,
   hasSearchConfigFile,
@@ -11,6 +11,7 @@ import {
   searchSourceName,
   type SearchConfig,
 } from "../discovery/searches";
+import { readNtfyConfig } from "../notifications/ntfy";
 import { ensureDatabase, getDatabasePath } from "../storage/database";
 
 export type ReadinessStatus = "ok" | "warn" | "fail";
@@ -56,21 +57,29 @@ export function getRadarReadiness(options: ReadinessOptions = {}): ReadinessRepo
   }
 
   try {
-    const profile = loadPreferenceProfile();
-    profileName = profile.name;
-    commuteTargetCount = profile.commuteTargets.length;
-    checks.push({
-      name: "preferences",
-      status: profile.commuteTargets.length ? "ok" : "fail",
-      detail: `${profile.name}; ${profile.commuteTargets.length} commute target${profile.commuteTargets.length === 1 ? "" : "s"}; hot score ${profile.hotScore}`,
-    });
-
-    for (const target of profile.commuteTargets) {
+    if (!hasPreferenceConfigFile()) {
       checks.push({
-        name: `commute:${target.label}`,
-        status: "ok",
-        detail: `${target.address}; max ${target.maxMinutes} min`,
+        name: "preferences",
+        status: "fail",
+        detail: `Create ${getPreferencesPath()} from data/preferences.example.json before running the radar loop.`,
       });
+    } else {
+      const profile = loadPreferenceProfile();
+      profileName = profile.name;
+      commuteTargetCount = profile.commuteTargets.length;
+      checks.push({
+        name: "preferences",
+        status: profile.commuteTargets.length ? "ok" : "fail",
+        detail: `${profile.name}; ${profile.commuteTargets.length} commute target${profile.commuteTargets.length === 1 ? "" : "s"}; hot score ${profile.hotScore}`,
+      });
+
+      for (const target of profile.commuteTargets) {
+        checks.push({
+          name: `commute:${target.label}`,
+          status: "ok",
+          detail: `${target.address}; max ${target.maxMinutes} min`,
+        });
+      }
     }
   } catch (error) {
     checks.push({ name: "preferences", status: "fail", detail: errorMessage(error) });
@@ -95,18 +104,9 @@ export function getRadarReadiness(options: ReadinessOptions = {}): ReadinessRepo
     checks.push({ name: "searches", status: "fail", detail: errorMessage(error) });
   }
 
-  const ntfyTopic = process.env.NYC_APT_RADAR_NTFY_TOPIC?.trim();
   const requireNtfy = options.requireNtfy ?? true;
-
-  checks.push({
-    name: "ntfy",
-    status: ntfyTopic ? "ok" : requireNtfy ? "fail" : "warn",
-    detail: ntfyTopic
-      ? "Topic configured; run npm run notify:test for live phone verification."
-      : requireNtfy
-        ? "Missing NYC_APT_RADAR_NTFY_TOPIC; hot matches cannot be pushed."
-        : "Missing NYC_APT_RADAR_NTFY_TOPIC; --no-notify smoke runs will record skipped decisions without pushing.",
-  });
+  const ntfyCheck = ntfyReadiness(requireNtfy);
+  checks.push(ntfyCheck);
 
   const agentIntervalMinutes = readIntervalMinutes();
   checks.push({
@@ -125,11 +125,40 @@ export function getRadarReadiness(options: ReadinessOptions = {}): ReadinessRepo
     profileName,
     commuteTargetCount,
     searchCount,
-    ntfyConfigured: Boolean(ntfyTopic),
+    ntfyConfigured: ntfyCheck.status === "ok",
     agentIntervalMinutes,
     nextCommand: nextCommandFor(checks, ready),
     checks,
   };
+}
+
+function ntfyReadiness(requireNtfy: boolean): ReadinessCheck {
+  const ntfyTopic = process.env.NYC_APT_RADAR_NTFY_TOPIC?.trim();
+
+  if (!ntfyTopic) {
+    return {
+      name: "ntfy",
+      status: requireNtfy ? "fail" : "warn",
+      detail: requireNtfy
+        ? "Missing NYC_APT_RADAR_NTFY_TOPIC; hot matches cannot be pushed."
+        : "Missing NYC_APT_RADAR_NTFY_TOPIC; --no-notify smoke runs will record skipped decisions without pushing.",
+    };
+  }
+
+  try {
+    const config = readNtfyConfig();
+    return {
+      name: "ntfy",
+      status: "ok",
+      detail: `Topic configured at ${config.baseUrl}; run npm run notify:test for live phone verification.`,
+    };
+  } catch (error) {
+    return {
+      name: "ntfy",
+      status: "fail",
+      detail: errorMessage(error),
+    };
+  }
 }
 
 function searchReadiness(search: SearchConfig): ReadinessCheck {
@@ -140,11 +169,16 @@ function searchReadiness(search: SearchConfig): ReadinessCheck {
   };
 }
 
-function nodeReadiness(): ReadinessCheck {
+export function nodeReadiness(version = process.versions.node): ReadinessCheck {
+  const major = Number(version.split(".")[0]);
+  const supported = Number.isInteger(major) && major >= 20;
+
   return {
     name: "node",
-    status: "ok",
-    detail: `Node ${process.version}`,
+    status: supported ? "ok" : "fail",
+    detail: supported
+      ? `Node ${version}`
+      : `Node ${version}; Node.js 20 or newer is required.`,
   };
 }
 

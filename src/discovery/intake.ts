@@ -91,6 +91,7 @@ async function processDocument(
 
   if (duplicate) {
     result.duplicateDocuments += 1;
+    return;
   }
 
   let drafts: ListingDraft[];

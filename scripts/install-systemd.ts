@@ -3,11 +3,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import "../src/config/env";
-import { buildSystemdService, buildSystemdTimer, defaultSystemdServicePath, defaultSystemdTimerPath } from "../src/automation/systemd";
+import {
+  buildSystemdService,
+  buildSystemdTimer,
+  defaultSystemdServicePath,
+  defaultSystemdTimerPath,
+  validateSystemdUnitName,
+} from "../src/automation/systemd";
 import { readAgentIntervalMinutes } from "../src/config/timeouts";
 import { getRadarReadiness } from "../src/diagnostics/readiness";
 
-const unitName = readStringFlag("--unit-name") ?? "nyc-apt-radar";
+const unitName = validateSystemdUnitName(readStringFlag("--unit-name") ?? "nyc-apt-radar");
 const intervalMinutes = readNumberFlag("--interval-minutes") ?? readAgentIntervalMinutes();
 const repoDir = path.resolve(readStringFlag("--repo-dir") ?? process.cwd());
 const serviceUser = readStringFlag("--user") ?? defaultServiceUser();

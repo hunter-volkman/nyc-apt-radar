@@ -70,6 +70,8 @@ data/logs/
 
 The checked-in `.example` files are safe templates. Copy them locally and edit the copies.
 
+Treat `.env`, preference/search copies, SQLite files, and log files as private operator data. They can contain search constraints, listing history, notification attempts, and local workflow notes, so keep them on trusted storage and out of commits, shared tickets, and public logs.
+
 ### `.env`
 
 Minimum useful local values:
