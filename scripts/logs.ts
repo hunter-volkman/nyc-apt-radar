@@ -5,8 +5,8 @@ import "../src/config/env";
 const lineCount = readLineCount();
 const logDirectory = path.join(process.cwd(), "data", "logs");
 const logs = [
-  { label: "watch.log", path: path.join(logDirectory, "watch.log") },
-  { label: "watch.err.log", path: path.join(logDirectory, "watch.err.log") },
+  { label: "agent.log", path: path.join(logDirectory, "agent.log") },
+  { label: "agent.err.log", path: path.join(logDirectory, "agent.err.log") },
 ];
 
 for (const log of logs) {

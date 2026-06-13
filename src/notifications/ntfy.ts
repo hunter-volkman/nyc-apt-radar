@@ -69,8 +69,19 @@ export async function notifyIfInteresting(listing: Listing, profile: PreferenceP
   const dedupeKey = `hot:${listing.id}:${listing.score}`;
   const existingNotification = getNotification(dedupeKey);
   const hasTopic = Boolean(process.env.NYC_APT_RADAR_NTFY_TOPIC);
+  const message = ntfyMessageForListing(listing, profile);
 
   if (existingNotification?.status === "sent") {
+    recordNotification({
+      listingId: listing.id,
+      dedupeKey: `deduped:${listing.id}:${listing.score}`,
+      channel: "ntfy",
+      status: "deduped",
+      title: message.title,
+      body: message.body,
+      errorMessage: "Notification already sent for this listing score.",
+    });
+
     return {
       sent: false,
       skipped: true,
@@ -78,8 +89,6 @@ export async function notifyIfInteresting(listing: Listing, profile: PreferenceP
       message: "Notification already sent for this score.",
     };
   }
-
-  const message = ntfyMessageForListing(listing, profile);
 
   if (!hasTopic) {
     recordNotification({
@@ -140,4 +149,87 @@ export async function notifyIfInteresting(listing: Listing, profile: PreferenceP
       message: errorMessage,
     };
   }
+}
+
+export function recordNotificationDecisionWithoutSending(
+  listing: Listing,
+  profile: PreferenceProfile,
+  reason = "Live notification disabled by --no-notify.",
+): NotificationResult {
+  const message = ntfyMessageForListing(listing, profile);
+
+  if (listing.status === "rejected") {
+    recordNotification({
+      listingId: listing.id,
+      dedupeKey: `skipped:${listing.id}:${listing.score}:rejected`,
+      channel: "ntfy",
+      status: "skipped",
+      title: message.title,
+      body: message.body,
+      errorMessage: "Listing is rejected.",
+    });
+
+    return {
+      sent: false,
+      skipped: true,
+      channel: "ntfy",
+      message: "Listing is rejected.",
+    };
+  }
+
+  if (listing.score < profile.hotScore) {
+    recordNotification({
+      listingId: listing.id,
+      dedupeKey: `skipped:${listing.id}:${listing.score}:below-threshold`,
+      channel: "ntfy",
+      status: "skipped",
+      title: message.title,
+      body: message.body,
+      errorMessage: `Score ${listing.score} is below hot threshold ${profile.hotScore}.`,
+    });
+
+    return {
+      sent: false,
+      skipped: true,
+      channel: "ntfy",
+      message: `Score ${listing.score} is below hot threshold ${profile.hotScore}.`,
+    };
+  }
+
+  const alreadySent = getNotification(`hot:${listing.id}:${listing.score}`)?.status === "sent";
+  if (alreadySent) {
+    recordNotification({
+      listingId: listing.id,
+      dedupeKey: `deduped:${listing.id}:${listing.score}`,
+      channel: "ntfy",
+      status: "deduped",
+      title: message.title,
+      body: message.body,
+      errorMessage: "Notification already sent for this listing score.",
+    });
+
+    return {
+      sent: false,
+      skipped: true,
+      channel: "ntfy",
+      message: "Notification already sent for this score.",
+    };
+  }
+
+  recordNotification({
+    listingId: listing.id,
+    dedupeKey: `skipped:${listing.id}:${listing.score}:no-live-send`,
+    channel: "ntfy",
+    status: "skipped",
+    title: message.title,
+    body: message.body,
+    errorMessage: reason,
+  });
+
+  return {
+    sent: false,
+    skipped: true,
+    channel: "ntfy",
+    message: reason,
+  };
 }

@@ -6,9 +6,10 @@ export type LaunchAgentOptions = {
   label?: string;
   intervalMinutes?: number;
   logDirectory?: string;
+  npmScript?: string;
 };
 
-const defaultLabel = "com.nyc-apt-radar.loop";
+const defaultLabel = "com.hunter.nyc-apt-radar";
 const defaultPath = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
 
 export function defaultLaunchAgentPath(label = defaultLabel) {
@@ -17,8 +18,9 @@ export function defaultLaunchAgentPath(label = defaultLabel) {
 
 export function buildLaunchAgentPlist(options: LaunchAgentOptions) {
   const label = options.label ?? defaultLabel;
-  const intervalSeconds = Math.max(60, Math.round((options.intervalMinutes ?? 10) * 60));
+  const intervalSeconds = Math.max(60, Math.round((options.intervalMinutes ?? 60) * 60));
   const logDirectory = options.logDirectory ?? path.join(options.cwd, "data", "logs");
+  const npmScript = options.npmScript ?? "agent:run";
 
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
@@ -32,17 +34,15 @@ export function buildLaunchAgentPlist(options: LaunchAgentOptions) {
     plistString(`PATH=${defaultPath}`),
     plistString("npm"),
     plistString("run"),
-    plistString("watch"),
-    plistString("--"),
-    plistString("--once"),
+    plistString(npmScript),
     `  </array>`,
     plistKey("WorkingDirectory", options.cwd),
     `  <key>RunAtLoad</key>`,
     `  <true/>`,
     `  <key>StartInterval</key>`,
     `  <integer>${intervalSeconds}</integer>`,
-    plistKey("StandardOutPath", path.join(logDirectory, "watch.log")),
-    plistKey("StandardErrorPath", path.join(logDirectory, "watch.err.log")),
+    plistKey("StandardOutPath", path.join(logDirectory, "agent.log")),
+    plistKey("StandardErrorPath", path.join(logDirectory, "agent.err.log")),
     `</dict>`,
     `</plist>`,
     "",

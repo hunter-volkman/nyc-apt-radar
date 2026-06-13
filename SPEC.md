@@ -5,7 +5,7 @@
 Build a private, local-first apartment discovery agent loop for a New York City apartment search.
 
 ```text
-watched source -> source event -> extract listing -> finalize fields -> estimate commute -> score -> rank -> notify -> draft outreach -> track status
+StreetEasy search -> discovery event -> extract listing -> finalize fields -> estimate commute -> score -> rank -> notify -> draft outreach -> track status
 ```
 
 The product is acceptable when the local operator can leave the loop running, receive ntfy push notifications for interesting matches, inspect why a listing scored well or poorly, and act quickly without the app sending messages automatically.
@@ -29,17 +29,17 @@ This is not a public marketplace or general real estate product. Optimize for sp
 
 ## In Scope
 
-- Watch local saved-search exports, copied listing alerts, email exports, JSON files, HTML files, and configured public URLs.
-- Intake one-off URLs, files, pasted text, and stdin from a terminal command.
+- Run configured StreetEasy public search URLs on demand or through launchd/systemd.
+- Intake one-off URLs, structured files, pasted text, and stdin from a terminal command.
 - Extract candidate listings into a normalized shape.
-- Store source events for dedupe and audit.
+- Store discovery events for dedupe and audit.
 - Score listings against the configured preferences.
 - Estimate subway commute quality to multiple target addresses.
 - Show ranked listings in the terminal.
 - Send ntfy push notifications for hot matches.
 - Generate editable outreach drafts.
 - Track status.
-- Use OpenAI Responses API Structured Outputs for unstructured listing-text extraction.
+- Extract StreetEasy JSON-LD and structured JSON listing data without model calls.
 
 ## Out Of Scope
 
@@ -161,20 +161,19 @@ Notifications:
 
 - Send through ntfy when `NYC_APT_RADAR_NTFY_TOPIC` is configured.
 - Record failed notification attempts when ntfy is not configured or delivery fails.
-- `npm run watch` should fail fast on failed readiness checks, including missing OpenAI or ntfy configuration.
+- `npm run agent:run` should fail fast on failed readiness checks, including missing StreetEasy search or ntfy configuration.
 - Never send outreach messages.
 - `npm run notify:test` should fail loudly unless an ntfy topic is configured.
 
-## OpenAI Boundary
+## Extraction Boundary
 
-Use OpenAI only for explicit extraction tasks where structure helps:
+The autonomous loop must not require an API key or model call. Extract only from inspectable local/public source data:
 
-- Pasted listing text -> `ListingDraft[]`
-- Saved unstructured source text -> `ListingDraft[]`
+- StreetEasy search JSON-LD -> `ListingDraft[]`
+- Structured JSON manual intake files -> `ListingDraft[]`
+- Plain listing URLs -> URL-only leads
 
-Do not use OpenAI for ranking, scoring, source access, stealth browsing, or automatic outreach.
-
-Use Responses API Structured Outputs for schema-constrained extraction. Do not store OpenAI extraction calls for this private local workflow. Structured JSON source events may bypass OpenAI because they are already data, not messy text.
+Do not use model calls for ranking, scoring, source access, stealth browsing, extraction, or automatic outreach. If source text is unstructured and no structured fields can be found, record the failure honestly or save an explicit URL-only lead.
 
 ## Commands
 
@@ -182,12 +181,15 @@ Required commands:
 
 ```bash
 npm run doctor
-npm run discover
-npm run watch
+npm run agent:run
+npm run agent:install
+npm run agent:uninstall
+npm run agent:logs
+npm run searches
+npm run events
 npm run notify:test
 npm run radar
 npm run intake
-npm run listing:add
 npm run listing:update
 npm run listing:status
 npm run listing:draft
@@ -199,13 +201,11 @@ npm run build
 ## Acceptance Criteria
 
 - The project runs locally from a clean install.
-- Source documents can be discovered from `data/source-events`.
 - One-off listing input works from a pasted URL, a file path, pasted text, or stdin.
-- The default source-events folder may include real user-provided leads, but not fake listings.
-- Configured public URLs can be fetched with plain HTTP.
-- One failed source does not stop other reachable sources from being processed.
-- A doctor command reports database, source, preference, commute-target, watch, and ntfy readiness.
-- A doctor command fails when `OPENAI_API_KEY` or `NYC_APT_RADAR_NTFY_TOPIC` is missing.
+- Configured StreetEasy searches can be fetched with plain HTTP.
+- One failed search is recorded honestly.
+- A doctor command reports database, search, preference, commute-target, agent interval, and ntfy readiness.
+- A doctor command fails when no active StreetEasy search is configured or `NYC_APT_RADAR_NTFY_TOPIC` is missing.
 - Duplicate source events do not create notification spam.
 - Listings are normalized and persisted.
 - Listings are scored and ranked.

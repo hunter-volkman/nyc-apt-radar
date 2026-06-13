@@ -1,0 +1,12 @@
+{
+  "searches": [
+    {
+      "id": "streeteasy-saved-search",
+      "provider": "streeteasy",
+      "searchUrl": "https://streeteasy.com/for-rent/nyc",
+      "sourceName": "StreetEasy",
+      "enabled": false,
+      "resultLimit": 12
+    }
+  ]
+}

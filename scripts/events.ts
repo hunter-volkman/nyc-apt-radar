@@ -6,7 +6,7 @@ const events = listSourceEvents(limit);
 
 if (!events.length) {
   console.log("No source events recorded yet.");
-  console.log("Run: npm run discover");
+  console.log("Run: npm run agent:run -- --no-notify");
   process.exit(0);
 }
 
