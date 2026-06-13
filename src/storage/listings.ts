@@ -219,24 +219,24 @@ export function clearListings() {
   sqlite.prepare("DELETE FROM listings").run();
 }
 
-function stringUpdate(value: string | null | undefined, fallback: string) {
-  return value === undefined ? fallback : cleanString(value) ?? fallback;
+function stringUpdate(value: string | null | undefined, existingValue: string) {
+  return value === undefined ? existingValue : cleanString(value) ?? existingValue;
 }
 
-function nullableStringUpdate(value: string | null | undefined, fallback: string | null) {
-  return value === undefined ? fallback : cleanString(value);
+function nullableStringUpdate(value: string | null | undefined, existingValue: string | null) {
+  return value === undefined ? existingValue : cleanString(value);
 }
 
-function nullableNumberUpdate(value: number | string | null | undefined, fallback: number | null) {
-  return value === undefined ? fallback : cleanNumber(value);
+function nullableNumberUpdate(value: number | string | null | undefined, existingValue: number | null) {
+  return value === undefined ? existingValue : cleanNumber(value);
 }
 
-function nullableDateUpdate(value: string | null | undefined, fallback: string | null) {
-  return value === undefined ? fallback : cleanDate(value);
+function nullableDateUpdate(value: string | null | undefined, existingValue: string | null) {
+  return value === undefined ? existingValue : cleanDate(value);
 }
 
-function nullableDateTimeUpdate(value: string | null | undefined, fallback: string | null) {
-  return value === undefined ? fallback : cleanDateTime(value);
+function nullableDateTimeUpdate(value: string | null | undefined, existingValue: string | null) {
+  return value === undefined ? existingValue : cleanDateTime(value);
 }
 
 function descriptionUpdate(

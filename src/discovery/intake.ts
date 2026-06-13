@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fetchWithTimeout, readPositiveIntegerEnv } from "../config/timeouts";
 import type { Listing, ListingDraft } from "../core/listings";
 import { loadPreferenceProfile, type PreferenceProfile } from "../core/preferences";
 import { notifyIfInteresting } from "../notifications/ntfy";
 import { createSourceEvent, markSourceEventFailed, markSourceEventProcessed } from "../storage/discovery";
 import { upsertListing } from "../storage/listings";
+import type { DiscoveryDocument } from "./documents";
 import { extractListingDrafts } from "./extract";
-import { collectSourceDocumentsWithErrors, formatSourceCollectionError, type SourceDocument } from "./sources";
 
 export type IntakeInputKind = "auto" | "file" | "url" | "text";
 
@@ -37,8 +38,8 @@ export type IntakeResult = {
 };
 
 type IntakeDocument = {
-  document: SourceDocument;
-  fallbackDrafts?: ListingDraft[];
+  document: DiscoveryDocument;
+  urlOnlyDrafts?: ListingDraft[];
   warning?: string;
 };
 
@@ -94,7 +95,7 @@ async function processDocument(
 
   let drafts: ListingDraft[];
   try {
-    drafts = item.fallbackDrafts ?? await extractListingDrafts(document);
+    drafts = item.urlOnlyDrafts ?? await extractListingDrafts(document);
   } catch (error) {
     if (document.sourceType === "url") {
       const draft = draftFromUrl(document.sourceRef, document.sourceName);
@@ -117,7 +118,7 @@ async function processDocument(
     source: draft.source ?? document.sourceName,
   }, profile, options.now));
   result.listingsSaved.push(...listings);
-  result.urlOnlyListings += item.fallbackDrafts?.length ?? 0;
+  result.urlOnlyListings += item.urlOnlyDrafts?.length ?? 0;
 
   if (!duplicate) {
     markSourceEventProcessed(event.id, listings.length);
@@ -185,30 +186,44 @@ async function documentsFromFile(filePath: string, sourceName?: string): Promise
 
 async function documentsFromUrl(rawUrl: string, sourceName?: string): Promise<IntakeDocument[]> {
   const source = sourceName ?? sourceNameFromUrl(rawUrl);
-  const { documents, errors } = await collectSourceDocumentsWithErrors([{
-    id: `intake-url:${stableUrlId(rawUrl)}`,
-    type: "url",
-    url: rawUrl,
-    sourceName: source,
-  }]);
+  const sourceId = `intake-url:${stableUrlId(rawUrl)}`;
 
-  if (documents.length) {
-    return documents.map((document) => ({ document }));
+  try {
+    const response = await fetchWithTimeout(rawUrl, {
+      headers: {
+        "User-Agent": "nyc-apt-radar/0.1 local-first apartment search assistant",
+        Accept: "text/html,application/xhtml+xml,application/json,text/plain;q=0.9,*/*;q=0.8",
+      },
+    }, readPositiveIntegerEnv("NYC_APT_RADAR_FETCH_TIMEOUT_MS", 15000));
+
+    if (!response.ok) {
+      throw new Error(`Fetch failed for ${rawUrl}: ${response.status} ${response.statusText}`);
+    }
+
+    return [{
+      document: {
+        sourceId,
+        sourceType: "url",
+        sourceName: source,
+        sourceRef: rawUrl,
+        rawText: await response.text(),
+        discoveredAt: new Date().toISOString(),
+      },
+    }];
+  } catch (error) {
+    return [{
+      document: {
+        sourceId,
+        sourceType: "url",
+        sourceName: source,
+        sourceRef: rawUrl,
+        rawText: rawUrl,
+        discoveredAt: new Date().toISOString(),
+      },
+      urlOnlyDrafts: [draftFromUrl(rawUrl, source)],
+      warning: `${sourceId}: ${errorMessage(error)}. Saved URL-only lead.`,
+    }];
   }
-
-  const warning = errors.map(formatSourceCollectionError).join("; ") || `Unable to fetch ${rawUrl}`;
-  return [{
-    document: {
-      sourceId: `intake-url:${stableUrlId(rawUrl)}`,
-      sourceType: "url",
-      sourceName: source,
-      sourceRef: rawUrl,
-      rawText: rawUrl,
-      discoveredAt: new Date().toISOString(),
-    },
-    fallbackDrafts: [draftFromUrl(rawUrl, source)],
-    warning: `${warning}. Saved URL-only lead.`,
-  }];
 }
 
 function documentsFromText(rawText: string, sourceName?: string): IntakeDocument[] {

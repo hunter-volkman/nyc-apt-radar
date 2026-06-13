@@ -1,7 +1,7 @@
 import "../src/config/env";
 import { nextActionForListing } from "../src/core/ranking";
 import { loadPreferenceProfile } from "../src/core/preferences";
-import { estimateCommutes } from "../src/core/transit";
+import { estimateCommutes, type CommuteEstimate } from "../src/core/transit";
 import { listRankedListings } from "../src/storage/listings";
 import { getDatabasePath } from "../src/storage/database";
 
@@ -10,8 +10,8 @@ const listings = listRankedListings(profile);
 
 if (!listings.length) {
   console.log("No listings yet.");
-  console.log("Run: npm run discover");
-  console.log("Or add one: npm run listing:add -- --title \"...\" --rent 3995 --source-url \"...\"");
+  console.log("Run: npm run agent:run -- --no-notify");
+  console.log("Or intake a known listing URL: npm run intake -- https://streeteasy.com/building/...");
   process.exit(0);
 }
 
@@ -26,16 +26,30 @@ for (const [index, listing] of listings.entries()) {
   console.log(`    ${listing.address ?? "Address unknown"}`);
   console.log(`    ${listing.scoreExplanation}`);
   for (const commute of estimateCommutes(listing, profile)) {
-    console.log(`    Commute: ${commute.summary}`);
+    printCommute(commute);
   }
   console.log(`    Next: ${nextActionForListing(listing)}`);
   if (listing.appointmentAt) {
     console.log(`    Appointment: ${formatAppointment(listing.appointmentAt)}`);
   }
   if (listing.sourceUrl) {
-    console.log(`    Source: ${listing.sourceUrl}`);
+    console.log(`    URL: ${listing.sourceUrl}`);
   }
   console.log("");
+}
+
+function printCommute(commute: CommuteEstimate) {
+  if (commute.confidence === "low") {
+    console.log(`    Commute to ${commute.targetLabel}: unknown (${commute.targetAddress})`);
+    console.log("        Needs coordinates or a known neighborhood.");
+    return;
+  }
+
+  const confidence = commute.confidence === "high" ? "estimated" : "approximate";
+  console.log(`    Commute to ${commute.targetLabel}: ${commute.totalMinutes} min ${confidence}`);
+  console.log(`        Walk to train: ${commute.walkToTrainMinutes} min to ${commute.startStation}`);
+  console.log(`        Train: ${commute.lines.join(" -> ")}; ${commute.transfers} transfer${commute.transfers === 1 ? "" : "s"}; ${commute.trainMinutes} min`);
+  console.log(`        Walk from train: ${commute.walkFromTrainMinutes} min from ${commute.endStation}`);
 }
 
 function money(value: number | null) {

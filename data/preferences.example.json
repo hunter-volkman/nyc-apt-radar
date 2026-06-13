@@ -1,5 +1,5 @@
 {
-  "name": "Default NYC apartment search",
+  "name": "Example NYC apartment search",
   "budget": {
     "targetRent": 3800,
     "maxRent": 4000,
@@ -26,11 +26,27 @@
       "maxMinutes": 35
     }
   ],
+  "bedroomPreference": {
+    "min": 1,
+    "max": 2
+  },
+  "bathroomPreference": {
+    "min": 1
+  },
   "petRequirements": {
     "cats": true,
     "dogs": false
   },
   "feePreference": "no_fee",
-  "targetMoveIn": "2026-07-01",
+  "dealbreakers": [
+    "basement apartment",
+    "no cats",
+    "cash before showing",
+    "wire deposit",
+    "sight unseen",
+    "rent above stretch budget"
+  ],
+  "niceToHaves": ["dishwasher", "laundry", "elevator", "natural light", "outdoor space", "near subway"],
+  "targetMoveIn": null,
   "hotScore": 78
 }

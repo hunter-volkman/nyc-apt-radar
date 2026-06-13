@@ -1,0 +1,13 @@
+[Unit]
+Description=NYC Apt Radar agent pass
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/nyc-apt-radar
+User=nyc-apt-radar
+Environment=NODE_ENV=production
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-/opt/nyc-apt-radar/.env
+ExecStart=/usr/bin/env npm run agent:run

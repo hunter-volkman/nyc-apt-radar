@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListingDraft } from "../src/core/listings";
 import { finalizeListing } from "../src/core/finalize-listing";
 import { generateOutreachDraft } from "../src/core/outreach";
@@ -13,6 +13,13 @@ import { estimateCommutes } from "../src/core/transit";
 const now = new Date("2026-06-12T18:00:00.000Z");
 const testWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), "nyc-apt-radar-test-"));
 process.env.NYC_APT_RADAR_DATABASE_PATH = path.join(testWorkspace, "radar.sqlite");
+const missingPreferencesPath = path.join(testWorkspace, "missing-preferences.json");
+const missingSearchesPath = path.join(testWorkspace, "missing-searches.json");
+
+beforeEach(() => {
+  process.env.NYC_APT_RADAR_PREFERENCES_PATH = missingPreferencesPath;
+  process.env.NYC_APT_RADAR_SEARCHES_PATH = missingSearchesPath;
+});
 
 afterEach(async () => {
   vi.useRealTimers();
@@ -34,15 +41,13 @@ afterEach(async () => {
   delete process.env.NYC_APT_RADAR_NTFY_BASE_URL;
   delete process.env.NYC_APT_RADAR_NTFY_TIMEOUT_MS;
   delete process.env.NYC_APT_RADAR_PREFERENCES_PATH;
-  delete process.env.NYC_APT_RADAR_SOURCES_PATH;
-  delete process.env.NYC_APT_RADAR_SOURCE_URLS;
+  delete process.env.NYC_APT_RADAR_SEARCHES_PATH;
+  delete process.env.NYC_APT_RADAR_SEARCH_RESULT_LIMIT;
   delete process.env.NYC_APT_RADAR_FETCH_TIMEOUT_MS;
-  delete process.env.NYC_APT_RADAR_OPENAI_TIMEOUT_MS;
-  delete process.env.NYC_APT_RADAR_WATCH_INTERVAL_MINUTES;
-  delete process.env.OPENAI_API_KEY;
+  delete process.env.NYC_APT_RADAR_AGENT_INTERVAL_MINUTES;
 });
 
-describe("MVP apartment radar loop", () => {
+describe("apartment radar loop", () => {
   it("scores a strong listing with deterministic weighted categories", () => {
     const listing = scoreAndExplain(makeListing({
       title: "Chelsea 1BR near Penn",
@@ -55,6 +60,8 @@ describe("MVP apartment radar loop", () => {
       pets: "cats_allowed",
       feeStatus: "no_fee",
       amenities: ["dishwasher", "laundry", "near subway"],
+      latitude: 40.7502,
+      longitude: -73.9970,
     }), defaultPreferenceProfile, now);
 
     expect(listing.score).toBeGreaterThanOrEqual(90);
@@ -114,6 +121,8 @@ describe("MVP apartment radar loop", () => {
       bathrooms: 1,
       pets: "cats_allowed",
       feeStatus: "no_fee",
+      latitude: 40.7502,
+      longitude: -73.9970,
       firstSeenAt: "2026-06-12T15:00:00.000Z",
       lastSeenAt: "2026-06-12T15:00:00.000Z",
     }), defaultPreferenceProfile, now);
@@ -127,6 +136,8 @@ describe("MVP apartment radar loop", () => {
       address: "345 W 30th St #4B",
       neighborhood: "Chelsea",
       rent: 3795,
+      latitude: 40.7502,
+      longitude: -73.9970,
     });
     const commute = estimateCommutes(listing, defaultPreferenceProfile)[0];
 
@@ -174,6 +185,8 @@ describe("MVP apartment radar loop", () => {
       address: "56 Ainslie Street #4G",
       neighborhood: "Williamsburg",
       rent: 3999,
+      latitude: 40.7124,
+      longitude: -73.9508,
     }), profile);
 
     expect(profile.name).toBe("Config profile");
@@ -203,39 +216,172 @@ describe("MVP apartment radar loop", () => {
 });
 
 describe("automated discovery loop", () => {
-  it("discovers listings from a watched source file and sends hot-match ntfy notifications", async () => {
-    const sourceFile = path.join(testWorkspace, "source-file.json");
-    process.env.NYC_APT_RADAR_NTFY_TOPIC = "discovery-topic";
-    process.env.NYC_APT_RADAR_NTFY_BASE_URL = "https://ntfy.test";
-    const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
+  it("saves URL-only leads from StreetEasy search links when JSON-LD is unavailable", async () => {
+    const searchUrl = "https://streeteasy.com/for-rent/nyc";
+    const listingUrl = "https://streeteasy.com/building/345-west-30-street-new_york/4b";
+
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url) === searchUrl) {
+        return new Response(`<a href="/building/345-west-30-street-new_york/4b">345 W 30th</a>`, { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch ${String(url)}`);
+    });
     vi.stubGlobal("fetch", fetchMock);
 
-    fs.writeFileSync(sourceFile, JSON.stringify({
-      listings: [{
-        title: "345 W 30th St #4B",
-        sourceUrl: "https://streeteasy.com/building/345-west-30-street-new_york/4b",
-        address: "345 W 30th St #4B",
-        neighborhood: "Chelsea",
-        borough: "Manhattan",
-        rent: 3795,
-        bedrooms: 1,
-        bathrooms: 1,
-        pets: "cats_allowed",
-        feeStatus: "no_fee",
-        amenities: ["laundry", "dishwasher"],
+    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const result = await runDiscoveryOnce({
+      notificationMode: "off",
+      searches: [{
+        id: "streeteasy-test-search",
+        provider: "streeteasy",
+        searchUrl,
+        sourceName: "StreetEasy",
       }],
+    });
+
+    expect(result.searchesChecked).toBe(1);
+    expect(result.documentsSeen).toBe(1);
+    expect(result.listingsFound).toBe(1);
+    expect(result.listingsSaved[0]?.source).toBe("StreetEasy");
+    expect(result.listingsSaved[0]?.sourceUrl).toBe(listingUrl);
+    expect(result.listingsSaved[0]?.description).toContain("URL-only lead");
+    expect(result.errors).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledWith(searchUrl, expect.objectContaining({
+      headers: expect.objectContaining({
+        Accept: expect.stringContaining("text/html"),
+      }),
     }));
+    expect(fetchMock).not.toHaveBeenCalledWith(listingUrl, expect.anything());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("extracts StreetEasy JSON-LD search results without model calls", async () => {
+    const searchUrl = "https://streeteasy.com/for-rent/nyc/price:-4000";
+    const listingUrl = "https://streeteasy.com/building/122-boerum-street-brooklyn/3r";
+
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url) === searchUrl) {
+        return new Response([
+          `<script type="application/ld+json">`,
+          JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "Apartment",
+                "@id": listingUrl,
+                url: listingUrl,
+                name: "122 Boerum Street #3R",
+                numberOfBedrooms: 1,
+                numberOfBathroomsTotal: 1,
+                address: {
+                  "@type": "PostalAddress",
+                  streetAddress: "122 Boerum Street",
+                  addressLocality: "Williamsburg",
+                  addressRegion: "NY",
+                },
+                geo: {
+                  "@type": "GeoCoordinates",
+                  latitude: 40.70557,
+                  longitude: -73.944016,
+                },
+                additionalProperty: [
+                  { "@type": "PropertyValue", name: "Monthly Rent", value: "$3,729/mo" },
+                ],
+              },
+            ],
+          }),
+          `</script>`,
+        ].join(""), { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch ${String(url)}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const result = await runDiscoveryOnce({
+      notificationMode: "off",
+      searches: [{
+        id: "streeteasy-jsonld-search",
+        provider: "streeteasy",
+        searchUrl,
+        sourceName: "StreetEasy",
+      }],
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.listingsFound).toBe(1);
+    expect(result.listingsSaved[0]?.title).toBe("122 Boerum Street #3R");
+    expect(result.listingsSaved[0]?.rent).toBe(3729);
+    expect(result.listingsSaved[0]?.neighborhood).toBe("Williamsburg");
+    expect(result.listingsSaved[0]?.sourceUrl).toBe(listingUrl);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("extracts only StreetEasy building links from search pages", async () => {
+    const { extractListingUrls } = await import("../src/discovery/searches.js");
+    const otherSiteListing = "https://example.com/building/345-west-30-street-new_york/4b";
+    const streetEasyListing = "https://streeteasy.com/building/345-west-30-street-new_york/4b";
+
+    expect(extractListingUrls("streeteasy", "https://streeteasy.com/for-rent/nyc", [
+      `<a href="/building/345-west-30-street-new_york/4b">StreetEasy listing</a>`,
+      `<a href="/rental/123456">Disallowed rental path</a>`,
+      `<a href="${otherSiteListing}">Wrong site</a>`,
+    ].join("\n"))).toEqual([streetEasyListing]);
+  });
+
+  it("discovers listings from a StreetEasy search and sends hot-match ntfy notifications", async () => {
+    const searchUrl = "https://streeteasy.com/for-rent/nyc/price:-4000";
+    const listingUrl = "https://streeteasy.com/building/345-west-30-street-new_york/4b";
+    process.env.NYC_APT_RADAR_NTFY_TOPIC = "discovery-topic";
+    process.env.NYC_APT_RADAR_NTFY_BASE_URL = "https://ntfy.test";
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      if (String(url) === searchUrl) {
+        return new Response([
+          `<a href="${listingUrl}">345 W 30th</a>`,
+          `<script type="application/ld+json">`,
+          JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [{
+              "@type": "Apartment",
+              "@id": listingUrl,
+              url: listingUrl,
+              name: "345 W 30th St #4B",
+              numberOfBedrooms: 1,
+              numberOfBathroomsTotal: 1,
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "Chelsea",
+              },
+              geo: {
+                "@type": "GeoCoordinates",
+                latitude: 40.7502,
+                longitude: -73.9970,
+              },
+              additionalProperty: [
+                { "@type": "PropertyValue", name: "Monthly Rent", value: "$3,795/mo" },
+              ],
+            }],
+          }),
+          `</script>`,
+        ].join(""), { status: 200 });
+      }
+
+      return new Response("ok", { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
     const { listRankedListings } = await import("../src/storage/listings.js");
     const { listNotifications } = await import("../src/storage/notifications.js");
 
     const result = await runDiscoveryOnce({
-      sources: [{
-        id: "test-source",
-        type: "file",
-        path: sourceFile,
-        sourceName: "Test source",
+      searches: [{
+        id: "test-search",
+        provider: "streeteasy",
+        searchUrl,
+        sourceName: "StreetEasy",
       }],
     });
     const listings = listRankedListings();
@@ -246,7 +392,7 @@ describe("automated discovery loop", () => {
     expect(listings[0]?.title).toContain("345 W 30th St");
     expect(listings[0]?.score).toBeGreaterThanOrEqual(defaultPreferenceProfile.hotScore);
     expect(result.notificationsSent).toBe(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(notifications[0]?.channel).toBe("ntfy");
     expect(notifications[0]?.status).toBe("sent");
     expect(notifications[0]?.body).toContain("Bryant Park");
@@ -284,99 +430,6 @@ describe("automated discovery loop", () => {
     expect(events.map((event) => event.status).sort()).toEqual(["failed", "processed"]);
     expect(events.find((event) => event.sourceId === "history-good")?.listingsFound).toBe(1);
     expect(events.find((event) => event.sourceId === "history-bad")?.errorMessage).toContain("Fetch failed");
-  });
-
-  it("collects listings from configured public URL sources with plain fetch", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
-      listings: [{
-        title: "Chelsea 1BR near Penn",
-        url: "https://fixture.test/chelsea-1br",
-        address: "345 W 30th St #4B",
-        neighborhood: "Chelsea",
-        borough: "Manhattan",
-        rent: 3795,
-        beds: 1,
-        baths: 1,
-        pets: "cats_allowed",
-        fee_status: "no_fee",
-      }],
-    }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
-    const result = await runDiscoveryOnce({
-      notify: false,
-      sources: [{
-        id: "public-url-source",
-        type: "url",
-        url: "https://fixture.test/listings.json",
-        sourceName: "Public URL source",
-      }],
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith("https://fixture.test/listings.json", expect.objectContaining({
-      signal: expect.any(AbortSignal),
-      headers: expect.objectContaining({
-        Accept: expect.stringContaining("application/json"),
-      }),
-    }));
-    expect(result.errors).toEqual([]);
-    expect(result.documentsSeen).toBe(1);
-    expect(result.listingsFound).toBe(1);
-    expect(result.listingsSaved[0]?.sourceUrl).toBe("https://fixture.test/chelsea-1br");
-  });
-
-  it("uses OpenAI structured extraction for unstructured source text", async () => {
-    const sourceFile = path.join(testWorkspace, "unstructured-source.txt");
-    process.env.OPENAI_API_KEY = "test-key";
-    fs.writeFileSync(sourceFile, [
-      "345 W 30th St #4B",
-      "$3,795",
-      "Chelsea 1BR near Penn Station. Cats allowed. No fee.",
-    ].join("\n"));
-    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body));
-      expect(body.store).toBe(false);
-      expect(body.text.format.type).toBe("json_schema");
-      expect(body.input[0].content[0].text).toContain("Do not browse");
-
-      return new Response(JSON.stringify({
-        output: [{
-          type: "message",
-          content: [{ type: "output_text", text: JSON.stringify({
-            listings: [openAiDraft({
-              title: "345 W 30th St #4B",
-              sourceUrl: "https://streeteasy.com/building/345-west-30-street-new_york/4b",
-              address: "345 W 30th St #4B",
-              neighborhood: "Chelsea",
-              borough: "Manhattan",
-              rent: 3795,
-              pets: "cats_allowed",
-              feeStatus: "no_fee",
-            })],
-          }) }],
-        }],
-      }), { status: 200 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
-    const result = await runDiscoveryOnce({
-      notify: false,
-      sources: [{
-        id: "openai-text-source",
-        type: "file",
-        path: sourceFile,
-        sourceName: "OpenAI text source",
-      }],
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith("https://api.openai.com/v1/responses", expect.objectContaining({
-      method: "POST",
-    }));
-    expect(result.errors).toEqual([]);
-    expect(result.listingsFound).toBe(1);
-    expect(result.listingsSaved[0]?.title).toBe("345 W 30th St #4B");
   });
 
   it("intakes a pasted URL and saves a URL-only lead when plain fetch is unavailable", async () => {
@@ -438,37 +491,14 @@ describe("automated discovery loop", () => {
     ]);
   });
 
-  it("intakes a file with listing text through OpenAI and saves the ranked listing", async () => {
+  it("rejects unstructured listing text during file intake without network calls", async () => {
     const sourceFile = path.join(testWorkspace, "intake-listing.txt");
-    process.env.OPENAI_API_KEY = "test-key";
     fs.writeFileSync(sourceFile, [
       "56 Ainslie Street #4G",
       "$3,999",
       "Williamsburg apartment. Cats allowed. Broker fee unknown.",
     ].join("\n"));
-    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body));
-      expect(body.store).toBe(false);
-      expect(body.text.format.type).toBe("json_schema");
-
-      return new Response(JSON.stringify({
-        output: [{
-          type: "message",
-          content: [{ type: "output_text", text: JSON.stringify({
-            listings: [openAiDraft({
-              title: "56 Ainslie Street #4G",
-              sourceUrl: "https://streeteasy.com/building/52-ainslie-street-brooklyn/4g",
-              address: "56 Ainslie Street #4G",
-              neighborhood: "Williamsburg",
-              borough: "Brooklyn",
-              rent: 3999,
-              pets: "cats_allowed",
-              feeStatus: "unknown",
-            })],
-          }) }],
-        }],
-      }), { status: 200 });
-    });
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     const { intakeListings } = await import("../src/discovery/intake.js");
@@ -479,26 +509,12 @@ describe("automated discovery loop", () => {
       now,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("https://api.openai.com/v1/responses", expect.objectContaining({
-      method: "POST",
-    }));
-    expect(result.errors).toEqual([]);
-    expect(result.listingsSaved).toHaveLength(1);
-    expect(result.listingsSaved[0]?.title).toBe("56 Ainslie Street #4G");
-    expect(result.listingsSaved[0]?.scoreExplanation).toContain("cats allowed");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.listingsSaved).toEqual([]);
+    expect(result.errors[0]).toContain("No structured listing data found");
   });
 
-  it("reports timed-out source fetches without stopping other sources", async () => {
-    const sourceFile = path.join(testWorkspace, "timeout-fallback-source.json");
-    fs.writeFileSync(sourceFile, JSON.stringify({
-      listings: [{
-        title: "56 Ainslie Street #4G",
-        address: "56 Ainslie Street #4G",
-        neighborhood: "Williamsburg",
-        borough: "Brooklyn",
-        rent: 3999,
-      }],
-    }));
+  it("records timed-out StreetEasy search fetches", async () => {
     process.env.NYC_APT_RADAR_FETCH_TIMEOUT_MS = "5";
     const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener("abort", () => {
@@ -513,95 +529,28 @@ describe("automated discovery loop", () => {
     const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
     const pending = runDiscoveryOnce({
       notify: false,
-      sources: [
-        {
-          id: "slow-public-url",
-          type: "url",
-          url: "https://fixture.test/slow-listings.json",
-          sourceName: "Slow URL",
-        },
-        {
-          id: "fallback-file",
-          type: "file",
-          path: sourceFile,
-          sourceName: "Fallback file",
-        },
-      ],
+      searches: [{
+        id: "slow-streeteasy",
+        provider: "streeteasy",
+        searchUrl: "https://streeteasy.com/for-rent/nyc",
+        sourceName: "StreetEasy",
+      }],
     });
     await vi.advanceTimersByTimeAsync(5);
     const result = await pending;
     const { listSourceEvents } = await import("../src/storage/discovery.js");
     const events = listSourceEvents();
 
-    expect(result.sourcesChecked).toBe(2);
-    expect(result.errors).toContain("slow-public-url: Request timed out after 5 ms.");
-    expect(result.documentsSeen).toBe(1);
-    expect(result.listingsFound).toBe(1);
-    expect(result.listingsSaved[0]?.title).toContain("56 Ainslie");
-    expect(events.find((event) => event.sourceId === "slow-public-url")?.status).toBe("failed");
-    expect(events.find((event) => event.sourceId === "slow-public-url")?.errorMessage).toContain("timed out");
+    expect(result.searchesChecked).toBe(1);
+    expect(result.errors).toContain("slow-streeteasy: Request timed out after 5 ms.");
+    expect(result.documentsSeen).toBe(0);
+    expect(result.listingsFound).toBe(0);
+    expect(events.find((event) => event.sourceId === "slow-streeteasy")?.status).toBe("failed");
+    expect(events.find((event) => event.sourceId === "slow-streeteasy")?.errorMessage).toContain("timed out");
   });
 
-  it("collects configured sources concurrently so a slow source does not block a fast source from starting", async () => {
-    process.env.NYC_APT_RADAR_FETCH_TIMEOUT_MS = "25";
-    const fetchMock = vi.fn((url: string | URL | Request, init?: RequestInit) => {
-      if (String(url).includes("slow")) {
-        return new Promise<Response>((_resolve, reject) => {
-          init?.signal?.addEventListener("abort", () => {
-            const error = new Error("aborted");
-            error.name = "AbortError";
-            reject(error);
-          });
-        });
-      }
-
-      return Promise.resolve(new Response(JSON.stringify({
-        listings: [{
-          id: "fast-public-source-lead",
-          title: "Fast Chelsea Lead",
-          sourceUrl: "https://fixture.test/fast-listing",
-          address: "345 W 30th St #4B",
-          neighborhood: "Chelsea",
-          borough: "Manhattan",
-          rent: 3795,
-        }],
-      }), { status: 200 }));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    vi.useFakeTimers();
-
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
-    const pending = runDiscoveryOnce({
-      notify: false,
-      sources: [
-        {
-          id: "slow-url-first",
-          type: "url",
-          url: "https://fixture.test/slow-listings.json",
-          sourceName: "Slow URL",
-        },
-        {
-          id: "fast-url-second",
-          type: "url",
-          url: "https://fixture.test/fast-listings.json",
-          sourceName: "Fast URL",
-        },
-      ],
-    });
-
-    await Promise.resolve();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    await vi.advanceTimersByTimeAsync(25);
-    const result = await pending;
-
-    expect(result.errors).toContain("slow-url-first: Request timed out after 25 ms.");
-    expect(result.documentsSeen).toBe(1);
-    expect(result.listingsSaved[0]?.id).toBe("fast-public-source-lead");
-  });
-
-  it("preserves explicit ids from JSON source events and can reprocess after dedupe reset", async () => {
-    const sourceFile = path.join(testWorkspace, "json-source-event.json");
+  it("intakes structured JSON files and can reprocess after dedupe reset", async () => {
+    const sourceFile = path.join(testWorkspace, "json-listing.json");
     fs.writeFileSync(sourceFile, JSON.stringify({
       listings: [{
         id: "json-explicit-id",
@@ -614,41 +563,26 @@ describe("automated discovery loop", () => {
         rent: 3795,
         status: "scheduled",
         appointmentAt: "2026-06-13T11:00:00-04:00",
+        latitude: 40.7502,
+        longitude: -73.9970,
       }],
     }));
 
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const { intakeListings } = await import("../src/discovery/intake.js");
     const { clearSourceEvents } = await import("../src/storage/discovery.js");
     const { getListing } = await import("../src/storage/listings.js");
 
-    const first = await runDiscoveryOnce({
+    const input = {
+      inputs: [{ kind: "file" as const, value: sourceFile, sourceName: "JSON listing" }],
       notify: false,
-      sources: [{
-        id: "json-source-event",
-        type: "file",
-        path: sourceFile,
-        sourceName: "JSON source event",
-      }],
-    });
-    const duplicate = await runDiscoveryOnce({
-      notify: false,
-      sources: [{
-        id: "json-source-event",
-        type: "file",
-        path: sourceFile,
-        sourceName: "JSON source event",
-      }],
-    });
+      profile: defaultPreferenceProfile,
+      now,
+    };
+
+    const first = await intakeListings(input);
+    const duplicate = await intakeListings(input);
     clearSourceEvents();
-    const afterReset = await runDiscoveryOnce({
-      notify: false,
-      sources: [{
-        id: "json-source-event",
-        type: "file",
-        path: sourceFile,
-        sourceName: "JSON source event",
-      }],
-    });
+    const afterReset = await intakeListings(input);
 
     expect(first.listingsSaved[0]?.id).toBe("json-explicit-id");
     expect(getListing("json-explicit-id")?.status).toBe("scheduled");
@@ -674,6 +608,8 @@ describe("automated discovery loop", () => {
       pets: "cats_allowed",
       feeStatus: "no_fee",
       amenities: ["laundry", "dishwasher"],
+      latitude: 40.7502,
+      longitude: -73.9970,
     }), defaultPreferenceProfile, now);
 
     const result = await notifyIfInteresting(listing, defaultPreferenceProfile);
@@ -702,6 +638,8 @@ describe("automated discovery loop", () => {
       rent: 3700,
       pets: "cats_allowed",
       feeStatus: "no_fee",
+      latitude: 40.7502,
+      longitude: -73.9970,
     }), defaultPreferenceProfile, now);
     const message = ntfyMessageForListing(listing, defaultPreferenceProfile);
 
@@ -733,6 +671,8 @@ describe("automated discovery loop", () => {
       pets: "cats_allowed",
       feeStatus: "no_fee",
       amenities: ["laundry", "dishwasher"],
+      latitude: 40.7502,
+      longitude: -73.9970,
     }), defaultPreferenceProfile, now);
 
     const failed = await notifyIfInteresting(listing, defaultPreferenceProfile);
@@ -758,6 +698,8 @@ describe("automated discovery loop", () => {
       rent: 3700,
       pets: "cats_allowed",
       feeStatus: "no_fee",
+      latitude: 40.7502,
+      longitude: -73.9970,
     }), defaultPreferenceProfile, now);
 
     delete process.env.NYC_APT_RADAR_NTFY_TOPIC;
@@ -770,6 +712,58 @@ describe("automated discovery loop", () => {
     expect(record?.channel).toBe("ntfy");
     expect(record?.status).toBe("failed");
     expect(record?.errorMessage).toContain("NYC_APT_RADAR_NTFY_TOPIC");
+  });
+
+  it("records notification decisions without sending during no-notify smoke runs", async () => {
+    const searchUrl = "https://streeteasy.com/for-rent/nyc/price:-4000";
+    const listingUrl = "https://streeteasy.com/building/345-west-30-street-new_york/4b";
+    const fetchMock = vi.fn(async () => new Response([
+      `<a href="${listingUrl}">345 W 30th</a>`,
+      `<script type="application/ld+json">`,
+      JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [{
+          "@type": "Apartment",
+          "@id": listingUrl,
+          url: listingUrl,
+          name: "345 W 30th St #4B",
+          numberOfBedrooms: 1,
+          numberOfBathroomsTotal: 1,
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: "Chelsea",
+          },
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: 40.7502,
+            longitude: -73.9970,
+          },
+          additionalProperty: [
+            { "@type": "PropertyValue", name: "Monthly Rent", value: "$3,700/mo" },
+          ],
+        }],
+      }),
+      `</script>`,
+    ].join(""), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const { listNotifications } = await import("../src/storage/notifications.js");
+    const result = await runDiscoveryOnce({
+      notificationMode: "dry-run",
+      searches: [{
+        id: "dry-run-search",
+        provider: "streeteasy",
+        searchUrl,
+        sourceName: "StreetEasy",
+      }],
+    });
+    const notifications = listNotifications();
+
+    expect(result.documentsSeen).toBe(1);
+    expect(result.notificationsSkipped).toBeGreaterThan(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(notifications.some((notification) => notification.status === "skipped")).toBe(true);
   });
 
   it("updates post-showing facts and recalculates score", async () => {
@@ -803,18 +797,15 @@ describe("automated discovery loop", () => {
 });
 
 describe("operator readiness", () => {
-  it("reports sources, preferences, commute targets, database, OpenAI, and ntfy readiness", async () => {
-    const sourceDirectory = path.join(testWorkspace, "doctor-source-events");
-    const sourcesPath = path.join(testWorkspace, "sources.json");
+  it("reports StreetEasy searches, preferences, commute targets, database, and ntfy readiness", async () => {
+    const searchesPath = path.join(testWorkspace, "doctor-searches.json");
     const preferencesPath = path.join(testWorkspace, "doctor-preferences.json");
-    fs.mkdirSync(sourceDirectory, { recursive: true });
-    fs.writeFileSync(path.join(sourceDirectory, "lead.txt"), "345 W 30th St #4B\n$3,795");
-    fs.writeFileSync(sourcesPath, JSON.stringify({
-      sources: [{
-        id: "doctor-local",
-        type: "directory",
-        path: sourceDirectory,
-        sourceName: "Doctor local source",
+    fs.writeFileSync(searchesPath, JSON.stringify({
+      searches: [{
+        id: "doctor-streeteasy",
+        provider: "streeteasy",
+        searchUrl: "https://streeteasy.com/for-rent/nyc",
+        sourceName: "StreetEasy",
       }],
     }));
     fs.writeFileSync(preferencesPath, JSON.stringify({
@@ -836,9 +827,8 @@ describe("operator readiness", () => {
         },
       ],
     }));
-    process.env.NYC_APT_RADAR_SOURCES_PATH = sourcesPath;
+    process.env.NYC_APT_RADAR_SEARCHES_PATH = searchesPath;
     process.env.NYC_APT_RADAR_PREFERENCES_PATH = preferencesPath;
-    process.env.OPENAI_API_KEY = "doctor-openai-key";
     process.env.NYC_APT_RADAR_NTFY_TOPIC = "doctor-topic";
 
     const { getRadarReadiness } = await import("../src/diagnostics/readiness.js");
@@ -846,16 +836,33 @@ describe("operator readiness", () => {
 
     expect(report.ready).toBe(true);
     expect(report.profileName).toBe("Doctor profile");
-    expect(report.sourceCount).toBe(1);
+    expect(report.searchCount).toBe(1);
     expect(report.commuteTargetCount).toBe(2);
-    expect(report.openaiConfigured).toBe(true);
     expect(report.ntfyConfigured).toBe(true);
     expect(report.checks.some((check) => check.name === "commute:Bryant Park")).toBe(true);
-    expect(report.checks.find((check) => check.name === "source:doctor-local")?.detail).toContain("1 supported file");
+    expect(report.checks.find((check) => check.name === "search:doctor-streeteasy")?.detail).toContain("streeteasy");
+  });
+
+  it("fails readiness when no active StreetEasy search is configured", async () => {
+    process.env.NYC_APT_RADAR_NTFY_TOPIC = "doctor-topic";
+    const { getRadarReadiness } = await import("../src/diagnostics/readiness.js");
+    const report = getRadarReadiness();
+
+    expect(report.ready).toBe(false);
+    expect(report.checks.find((check) => check.name === "searches")?.status).toBe("fail");
   });
 
   it("fails readiness when ntfy is not configured", async () => {
-    process.env.OPENAI_API_KEY = "doctor-openai-key";
+    const searchesPath = path.join(testWorkspace, "doctor-searches.json");
+    fs.writeFileSync(searchesPath, JSON.stringify({
+      searches: [{
+        id: "doctor-streeteasy",
+        provider: "streeteasy",
+        searchUrl: "https://streeteasy.com/for-rent/nyc",
+        sourceName: "StreetEasy",
+      }],
+    }));
+    process.env.NYC_APT_RADAR_SEARCHES_PATH = searchesPath;
     delete process.env.NYC_APT_RADAR_NTFY_TOPIC;
     const { getRadarReadiness } = await import("../src/diagnostics/readiness.js");
     const report = getRadarReadiness();
@@ -863,27 +870,17 @@ describe("operator readiness", () => {
     expect(report.ready).toBe(false);
     expect(report.checks.find((check) => check.name === "ntfy")?.status).toBe("fail");
   });
-
-  it("fails readiness when OpenAI is not configured", async () => {
-    process.env.NYC_APT_RADAR_NTFY_TOPIC = "doctor-topic";
-    delete process.env.OPENAI_API_KEY;
-    const { getRadarReadiness } = await import("../src/diagnostics/readiness.js");
-    const report = getRadarReadiness();
-
-    expect(report.ready).toBe(false);
-    expect(report.checks.find((check) => check.name === "openai")?.status).toBe("fail");
-  });
 });
 
 describe("local environment loading", () => {
   it("parses env files and does not override shell values", async () => {
     const envPath = path.join(testWorkspace, "radar.env");
     process.env.NYC_APT_RADAR_NTFY_TOPIC = "shell-topic";
-    delete process.env.NYC_APT_RADAR_WATCH_INTERVAL_MINUTES;
+    delete process.env.NYC_APT_RADAR_AGENT_INTERVAL_MINUTES;
     fs.writeFileSync(envPath, [
       "# local config",
       "NYC_APT_RADAR_NTFY_TOPIC=file-topic",
-      "NYC_APT_RADAR_WATCH_INTERVAL_MINUTES=\"7\"",
+      "NYC_APT_RADAR_AGENT_INTERVAL_MINUTES=\"7\"",
       "BAD LINE",
     ].join("\n"));
 
@@ -892,7 +889,7 @@ describe("local environment loading", () => {
 
     expect(loaded).toEqual([envPath]);
     expect(process.env.NYC_APT_RADAR_NTFY_TOPIC).toBe("shell-topic");
-    expect(process.env.NYC_APT_RADAR_WATCH_INTERVAL_MINUTES).toBe("7");
+    expect(process.env.NYC_APT_RADAR_AGENT_INTERVAL_MINUTES).toBe("7");
     expect(parseEnvFile("A=1\nB='two'\nC=\"three\"")).toEqual([
       ["A", "1"],
       ["B", "two"],
@@ -916,7 +913,7 @@ describe("local environment loading", () => {
 });
 
 describe("background automation setup", () => {
-  it("generates a LaunchAgent that runs one watch cycle on an interval", async () => {
+  it("generates a LaunchAgent that runs one agent cycle on an interval", async () => {
     const { buildLaunchAgentPlist } = await import("../src/automation/launchd.js");
     const plist = buildLaunchAgentPlist({
       cwd: "/tmp/nyc-apt-radar",
@@ -927,96 +924,23 @@ describe("background automation setup", () => {
 
     expect(plist).toContain("<string>com.test.nyc-apt-radar</string>");
     expect(plist).toContain("<string>/tmp/nyc-apt-radar</string>");
-    expect(plist).toContain("<string>watch</string>");
-    expect(plist).toContain("<string>--once</string>");
+    expect(plist).toContain("<string>agent:run</string>");
+    expect(plist).not.toContain("<string>--once</string>");
     expect(plist).not.toContain("--allow-local-notifications");
     expect(plist).toContain("<integer>420</integer>");
-    expect(plist).toContain("/tmp/nyc-apt-radar/logs/watch.log");
+    expect(plist).toContain("/tmp/nyc-apt-radar/logs/agent.log");
+  });
+
+  it("defaults LaunchAgent runs to one hour", async () => {
+    const { buildLaunchAgentPlist } = await import("../src/automation/launchd.js");
+    const plist = buildLaunchAgentPlist({
+      cwd: "/tmp/nyc-apt-radar",
+      label: "com.test.nyc-apt-radar",
+    });
+
+    expect(plist).toContain("<integer>3600</integer>");
   });
 });
-
-describe("OpenAI extraction boundary", () => {
-  it("uses Responses API structured output without storage and validates parsed drafts", async () => {
-    process.env.OPENAI_API_KEY = "test-key";
-    const structuredDraft = openAiDraft({
-      source: "StreetEasy",
-      sourceUrl: "https://fixture.test/listing",
-      title: "56 Ainslie Street #4G",
-      address: "56 Ainslie Street #4G",
-      neighborhood: "Williamsburg",
-      borough: "Brooklyn",
-      rent: 3999,
-      bedrooms: null,
-      bathrooms: null,
-      availableDate: null,
-      description: "Listing text",
-      amenities: ["laundry"],
-      pets: "unknown",
-      feeStatus: "unknown",
-      contactName: null,
-      appointmentAt: null,
-    });
-    const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body));
-      expect(body.store).toBe(false);
-      expect(body.max_output_tokens).toBe(2400);
-      expect(body.text.format.type).toBe("json_schema");
-      expect(body.input[0].content[0].text).toContain("Do not browse");
-
-      return new Response(JSON.stringify({
-        output: [{
-          type: "message",
-          content: [{ type: "output_text", text: JSON.stringify({ listings: [structuredDraft] }) }],
-        }],
-      }), { status: 200 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { extractListingDraftsWithOpenAI, parseOpenAIListingDrafts } = await import("../src/core/openai-extract.js");
-    const [draft] = await extractListingDraftsWithOpenAI("56 Ainslie listing text");
-
-    expect(draft?.title).toBe("56 Ainslie Street #4G");
-    expect(draft?.rent).toBe(3999);
-    expect(() => parseOpenAIListingDrafts({
-      output: [{
-        content: [{ type: "output_text", text: JSON.stringify({ listings: [{ ...structuredDraft, rent: "3999" }] }) }],
-      }],
-    })).toThrow("rent");
-    expect(() => parseOpenAIListingDrafts({
-      output: [{
-        content: [{ type: "refusal", refusal: "I cannot help with that." }],
-      }],
-    })).toThrow("refused listing extraction");
-  });
-});
-
-function openAiDraft(overrides: ListingDraft): ListingDraft {
-  return {
-    id: null,
-    source: null,
-    sourceUrl: null,
-    title: null,
-    address: null,
-    neighborhood: null,
-    borough: null,
-    rent: null,
-    bedrooms: null,
-    bathrooms: null,
-    availableDate: null,
-    description: null,
-    amenities: [],
-    pets: "unknown",
-    feeStatus: "unknown",
-    latitude: null,
-    longitude: null,
-    status: null,
-    firstSeenAt: null,
-    lastSeenAt: null,
-    contactName: null,
-    appointmentAt: null,
-    ...overrides,
-  };
-}
 
 function makeListing(overrides: ListingDraft) {
   return finalizeListing({

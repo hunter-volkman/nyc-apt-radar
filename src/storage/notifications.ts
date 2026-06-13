@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ensureDatabase, sqlite } from "./database";
 
-export type NotificationStatus = "sent" | "failed";
+export type NotificationStatus = "sent" | "skipped" | "deduped" | "failed";
 
 export type NotificationRecord = {
   id: string;

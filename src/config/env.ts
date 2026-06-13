@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const loadedEnvFiles = loadLocalEnv();
+export const loadedEnvFiles = shouldAutoLoadLocalEnv() ? loadLocalEnv() : [];
 
 export function loadLocalEnv(files = [".env.local", ".env"]) {
   const loaded: string[] = [];
@@ -54,4 +54,8 @@ function unquote(value: string) {
   }
 
   return value;
+}
+
+function shouldAutoLoadLocalEnv() {
+  return process.env.NODE_ENV !== "test" && process.env.VITEST !== "true";
 }
