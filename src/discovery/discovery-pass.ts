@@ -199,7 +199,7 @@ function urlOnlyDraftForUrl(sourceName: string, sourceUrl: string): ListingDraft
     source: sourceName,
     sourceUrl,
     title: titleFromUrl(sourceUrl),
-    description: "URL-only lead. The search found this listing, but detail fetch or extraction failed. Open it manually or rerun after fixing access/extraction.",
+    description: "URL-only lead. The search found this listing, but detail fetch or extraction failed. Review the source URL or rerun after fixing access/extraction.",
     amenities: [],
     pets: "unknown",
     feeStatus: "unknown",

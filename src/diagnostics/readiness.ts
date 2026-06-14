@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { readAgentIntervalMinutes } from "../config/timeouts";
+import { loadedEnvFiles } from "../config/env";
 import { getPreferencesPath, hasPreferenceConfigFile, loadPreferenceProfile } from "../core/preferences";
+import { readOpenAIResponsesConfig } from "../agent/openai";
 import {
   activeSearchConfigs,
   hasSearchConfigFile,
@@ -29,7 +30,8 @@ export type ReadinessReport = {
   commuteTargetCount: number;
   searchCount: number;
   ntfyConfigured: boolean;
-  agentIntervalMinutes: number;
+  openAIConfigured: boolean;
+  loadedEnvFiles: string[];
   nextCommand: string;
   checks: ReadinessCheck[];
 };
@@ -48,6 +50,7 @@ export function getRadarReadiness(options: ReadinessOptions = {}): ReadinessRepo
 
   checks.push(nodeReadiness());
   checks.push(npmReadiness());
+  checks.push(envFileReadiness());
 
   try {
     ensureDatabase();
@@ -108,12 +111,8 @@ export function getRadarReadiness(options: ReadinessOptions = {}): ReadinessRepo
   const ntfyCheck = ntfyReadiness(requireNtfy);
   checks.push(ntfyCheck);
 
-  const agentIntervalMinutes = readIntervalMinutes();
-  checks.push({
-    name: "agent interval",
-    status: agentIntervalMinutes > 0 ? "ok" : "fail",
-    detail: `Agent interval ${agentIntervalMinutes} minute${agentIntervalMinutes === 1 ? "" : "s"}`,
-  });
+  const openAICheck = openAIReadiness();
+  checks.push(openAICheck);
 
   checks.push(localRuntimeIgnoreReadiness());
 
@@ -126,10 +125,52 @@ export function getRadarReadiness(options: ReadinessOptions = {}): ReadinessRepo
     commuteTargetCount,
     searchCount,
     ntfyConfigured: ntfyCheck.status === "ok",
-    agentIntervalMinutes,
-    nextCommand: nextCommandFor(checks, ready),
+    openAIConfigured: openAICheck.status === "ok",
+    loadedEnvFiles,
+    nextCommand: nextCommandFor(checks, ready, requireNtfy),
     checks,
   };
+}
+
+function envFileReadiness(): ReadinessCheck {
+  if (!loadedEnvFiles.length) {
+    return {
+      name: "env files",
+      status: "warn",
+      detail: "No .env.local or .env file was loaded; relying only on shell environment variables.",
+    };
+  }
+
+  return {
+    name: "env files",
+    status: "ok",
+    detail: `Loaded ${loadedEnvFiles.map((file) => path.relative(process.cwd(), file)).join(", ")}.`,
+  };
+}
+
+function openAIReadiness(): ReadinessCheck {
+  try {
+    const config = readOpenAIResponsesConfig();
+    if (!config) {
+      return {
+        name: "openai supervisor",
+        status: "fail",
+        detail: `OPENAI_API_KEY is required for the model-directed agent loop; checked shell env${loadedEnvFiles.length ? ` and ${loadedEnvFiles.map((file) => path.relative(process.cwd(), file)).join(", ")}` : ""}.`,
+      };
+    }
+
+    return {
+      name: "openai supervisor",
+      status: "ok",
+      detail: `Responses API configured with ${config.model}; reasoning ${config.reasoningEffort}.`,
+    };
+  } catch (error) {
+    return {
+      name: "openai supervisor",
+      status: "fail",
+      detail: errorMessage(error),
+    };
+  }
 }
 
 function ntfyReadiness(requireNtfy: boolean): ReadinessCheck {
@@ -209,12 +250,12 @@ function localRuntimeIgnoreReadiness(): ReadinessCheck {
     return {
       name: "runtime ignores",
       status: "fail",
-      detail: ".gitignore is missing; local database, logs, and env files could be committed.",
+      detail: ".gitignore is missing; database and env files could be committed.",
     };
   }
 
   const gitignore = fs.readFileSync(gitignorePath, "utf8");
-  const required = [".env*", "/data/*.sqlite", "/data/*.sqlite-*", "/data/logs/"];
+  const required = [".env*", "/data/*.sqlite", "/data/*.sqlite-*"];
   const missing = required.filter((entry) => !gitignore.includes(entry));
 
   return {
@@ -222,18 +263,18 @@ function localRuntimeIgnoreReadiness(): ReadinessCheck {
     status: missing.length ? "fail" : "ok",
     detail: missing.length
       ? `Missing .gitignore entries: ${missing.join(", ")}`
-      : "Local env, SQLite, and log files are ignored by git.",
+      : "Env and SQLite files are ignored by git.",
   };
 }
 
-function nextCommandFor(checks: ReadinessCheck[], ready: boolean) {
+function nextCommandFor(checks: ReadinessCheck[], ready: boolean, requireNtfy: boolean) {
   if (ready) {
-    return "npm run agent:run -- --no-notify";
+    return requireNtfy ? "npm run agent:run" : "npm run agent:dry-run";
   }
 
   const failed = checks.find((check) => check.status === "fail");
   if (!failed) {
-    return "npm run agent:run -- --no-notify";
+    return "npm run agent:dry-run";
   }
 
   if (failed.name === "preferences" || failed.name.startsWith("commute:")) {
@@ -245,7 +286,11 @@ function nextCommandFor(checks: ReadinessCheck[], ready: boolean) {
   }
 
   if (failed.name === "ntfy") {
-    return "Set NYC_APT_RADAR_NTFY_TOPIC or run npm run ntfy:setup -- --write, then npm run notify:test";
+    return "Set NYC_APT_RADAR_NTFY_TOPIC, then npm run notify:test";
+  }
+
+  if (failed.name === "openai supervisor") {
+    return "Set OPENAI_API_KEY, then npm run doctor";
   }
 
   if (failed.name === "runtime ignores") {
@@ -253,10 +298,6 @@ function nextCommandFor(checks: ReadinessCheck[], ready: boolean) {
   }
 
   return "Fix the failing check, then npm run doctor";
-}
-
-function readIntervalMinutes() {
-  return readAgentIntervalMinutes();
 }
 
 function errorMessage(error: unknown) {

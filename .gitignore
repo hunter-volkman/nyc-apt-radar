@@ -13,10 +13,6 @@
 /data/*.db-*
 /data/logs/
 
-# next.js
-/.next/
-/out/
-
 # production
 /build
 

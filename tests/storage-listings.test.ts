@@ -20,7 +20,7 @@ describe("listing storage", () => {
 
     upsertListing({
       id: "merge-lead",
-      source: "manual",
+      source: "operator",
       sourceUrl: "https://fixture.test/merge-lead",
       title: "Original Chelsea Lead",
       address: "345 W 30th St #4B",
@@ -99,7 +99,7 @@ describe("listing storage", () => {
 
     upsertListing({
       id: "missing-facts",
-      source: "manual",
+      source: "StreetEasy",
       title: "Mystery lead",
       pets: "unknown",
       feeStatus: "unknown",
@@ -125,7 +125,7 @@ describe("listing storage", () => {
     const { addListing, getListing, listRankedListings } = await import("../src/storage/listings.js");
     const saved = addListing({
       id: "read-only-ranking",
-      source: "manual",
+      source: "StreetEasy",
       title: "Chelsea read-only lead",
       neighborhood: "Chelsea",
       rent: 3700,

@@ -3,10 +3,6 @@ export function readPositiveIntegerEnv(name: string, defaultValue: number) {
   return Number.isFinite(value) && value > 0 ? Math.round(value) : defaultValue;
 }
 
-export function readAgentIntervalMinutes(defaultValue = 60) {
-  return readPositiveIntegerEnv("NYC_APT_RADAR_AGENT_INTERVAL_MINUTES", defaultValue);
-}
-
 export async function fetchWithTimeout(input: string | URL | Request, init: RequestInit, timeoutMs: number) {
   const controller = new AbortController();
   let timedOut = false;

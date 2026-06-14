@@ -15,7 +15,7 @@ export function finalizeListing(draft: ListingDraft, now = new Date()): Listing 
 
   return {
     id: cleanString(draft.id) ?? makeListingId(title, sourceUrl),
-    source: cleanString(draft.source) ?? "manual",
+    source: cleanString(draft.source) ?? "unknown",
     sourceUrl,
     title,
     address: cleanString(draft.address),

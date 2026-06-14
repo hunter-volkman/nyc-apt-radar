@@ -1,4 +1,5 @@
 import "../src/config/env";
+import path from "node:path";
 import { getRadarReadiness, type ReadinessStatus } from "../src/diagnostics/readiness";
 
 const report = getRadarReadiness();
@@ -9,7 +10,8 @@ console.log(`Profile: ${report.profileName ?? "unavailable"}`);
 console.log(`Searches: ${report.searchCount}`);
 console.log(`Commute targets: ${report.commuteTargetCount}`);
 console.log(`ntfy: ${report.ntfyConfigured ? "configured" : "missing"}`);
-console.log(`Agent interval: ${report.agentIntervalMinutes} minute${report.agentIntervalMinutes === 1 ? "" : "s"}`);
+console.log(`OpenAI supervisor: ${report.openAIConfigured ? "configured" : "missing"}`);
+console.log(`Env files: ${formatEnvFiles(report.loadedEnvFiles)}`);
 console.log("");
 
 for (const check of report.checks) {
@@ -31,4 +33,10 @@ function symbol(status: ReadinessStatus) {
   }
 
   return "FAIL";
+}
+
+function formatEnvFiles(files: string[]) {
+  return files.length
+    ? files.map((file) => path.relative(process.cwd(), file)).join(", ")
+    : "none";
 }

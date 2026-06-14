@@ -9,5 +9,5 @@ WorkingDirectory=/opt/nyc-apt-radar
 User=nyc-apt-radar
 Environment=NODE_ENV=production
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-EnvironmentFile=-/opt/nyc-apt-radar/.env
+EnvironmentFile=/opt/nyc-apt-radar/.env
 ExecStart=/usr/bin/env npm run agent:run

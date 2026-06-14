@@ -1,5 +1,5 @@
 [Unit]
-Description=Run NYC Apt Radar every 60 minutes
+Description=Run NYC Apt Radar hourly
 
 [Timer]
 OnBootSec=5min

@@ -12,6 +12,7 @@ beforeEach(() => {
   process.env.NYC_APT_RADAR_PREFERENCES_PATH = path.join(testWorkspace, "preferences.json");
   process.env.NYC_APT_RADAR_SEARCHES_PATH = path.join(testWorkspace, "searches.json");
   process.env.NYC_APT_RADAR_NTFY_TOPIC = "doctor-topic";
+  process.env.OPENAI_API_KEY = "test-openai-key";
 });
 
 afterEach(() => {
@@ -21,6 +22,7 @@ afterEach(() => {
   delete process.env.NYC_APT_RADAR_SEARCHES_PATH;
   delete process.env.NYC_APT_RADAR_NTFY_TOPIC;
   delete process.env.NYC_APT_RADAR_NTFY_BASE_URL;
+  delete process.env.OPENAI_API_KEY;
 });
 
 describe("operator readiness", () => {
@@ -86,4 +88,35 @@ describe("operator readiness", () => {
     expect(ntfyCheck?.status).toBe("fail");
     expect(ntfyCheck?.detail).toContain("HTTPS");
   });
+
+  it("fails readiness when the OpenAI supervisor is not configured", async () => {
+    fs.writeFileSync(process.env.NYC_APT_RADAR_PREFERENCES_PATH!, JSON.stringify({
+      name: "Readiness profile",
+      commuteTargets: [{
+        label: "Bryant Park",
+        address: "Bryant Park, New York, NY",
+        latitude: 40.7536,
+        longitude: -73.9832,
+        maxMinutes: 35,
+      }],
+    }));
+    fs.writeFileSync(process.env.NYC_APT_RADAR_SEARCHES_PATH!, JSON.stringify({
+      searches: [{
+        id: "doctor-streeteasy",
+        provider: "streeteasy",
+        searchUrl: "https://streeteasy.com/for-rent/nyc",
+        sourceName: "StreetEasy",
+      }],
+    }));
+    delete process.env.OPENAI_API_KEY;
+
+    const { getRadarReadiness } = await import("../src/diagnostics/readiness.js");
+    const report = getRadarReadiness();
+    const openAICheck = report.checks.find((check) => check.name === "openai supervisor");
+
+    expect(report.ready).toBe(false);
+    expect(openAICheck?.status).toBe("fail");
+    expect(openAICheck?.detail).toContain("OPENAI_API_KEY");
+  });
+
 });

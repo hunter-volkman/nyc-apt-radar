@@ -12,7 +12,7 @@ export function extractListingDrafts(document: DiscoveryDocument): ListingDraft[
     return structuredHtmlDrafts;
   }
 
-  throw new Error("No structured listing data found. Use StreetEasy JSON-LD, structured JSON, or URL-only intake.");
+  throw new Error("No structured listing data found. Use StreetEasy JSON-LD, structured JSON fixtures, or URL-only search leads.");
 }
 
 function extractFromJson(document: DiscoveryDocument) {

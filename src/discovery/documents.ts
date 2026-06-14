@@ -1,4 +1,4 @@
-export type DiscoveryDocumentType = "file" | "url";
+export type DiscoveryDocumentType = "url";
 
 export type DiscoveryDocument = {
   sourceId: string;

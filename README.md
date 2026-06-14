@@ -1,27 +1,27 @@
 # NYC Apt Radar
 
-NYC Apt Radar is a private apartment discovery worker for a New York City rental search.
+NYC Apt Radar is a private, terminal-first NYC apartment discovery agent.
+
+The product is one loop:
 
 ```text
-StreetEasy search -> score -> notify -> track
+objective -> observe radar state -> plan -> remember -> run configured StreetEasy discovery when useful -> extract facts or URL-only leads -> score and rank -> inspect evidence -> recommend, notify, or request operator review -> evaluate -> audit -> remember -> stop
 ```
 
-It is a terminal-first TypeScript app with local SQLite persistence. It runs configured public StreetEasy search URLs, records what it found, extracts listing facts when structured data is available, estimates commute quality, scores listings against your preferences, sends ntfy alerts for hot matches, drafts outreach for you to edit, and tracks listing status.
+It uses a required OpenAI Responses API supervisor for process control. Deterministic TypeScript code handles source access, extraction, field finalization, commute estimates, scoring, ranking, notifications, storage, and audit checks. SQLite is the local evidence store.
 
-There is no web app, account system, payment flow, public marketplace, automatic outreach sender, browser automation, CAPTCHA bypassing, or model extraction in the autonomous loop.
+There is no web app, account system, public marketplace, in-app scheduler, deployment framework, browser automation, credentialed scraping, CAPTCHA bypassing, automatic outreach sender, or generic manual intake workflow. Minimal VPS support is plain systemd unit examples in `deploy/`.
 
-## Requirements
+## Setup
+
+Requirements:
 
 - Node.js 20 or newer
 - npm
-- A terminal
-- Optional: an ntfy topic for phone notifications
-- Optional for always-on cloud runs: an Ubuntu VPS with systemd
-- Optional for always-on local Mac runs: launchd
+- OpenAI API key
+- private ntfy topic for live hot-match pushes
 
-## Quick Start
-
-Install dependencies and create local config files:
+Create local config files:
 
 ```bash
 npm install
@@ -30,7 +30,7 @@ cp -n data/preferences.example.json data/preferences.json
 cp -n data/searches.example.json data/searches.json
 ```
 
-Edit these files before the first run:
+Edit:
 
 ```text
 .env
@@ -38,69 +38,126 @@ data/preferences.json
 data/searches.json
 ```
 
-Then run a safe pass:
-
-```bash
-npm run doctor
-npm run agent:dry-run
-npm run radar
-npm run notifications
-```
-
-`agent:dry-run` checks configured searches, saves listings, scores them, and records notification decisions without sending live ntfy pushes.
-
-When ntfy is configured and the test push works, run the live worker:
-
-```bash
-npm run notify:test
-npm run agent:run
-```
-
-## Configuration
-
-Local operator files are intentionally ignored by git:
-
-```text
-.env
-data/preferences.json
-data/searches.json
-data/nyc-apt-radar-loop.sqlite
-data/logs/
-```
-
-The checked-in `.example` files are safe templates. Copy them locally and edit the copies.
-
-Treat `.env`, preference/search copies, SQLite files, and log files as private operator data. They can contain search constraints, listing history, notification attempts, and local workflow notes, so keep them on trusted storage and out of commits, shared tickets, and public logs.
-
-### `.env`
-
-Minimum useful local values:
+Minimum useful `.env` values:
 
 ```bash
 NYC_APT_RADAR_PREFERENCES_PATH=data/preferences.json
 NYC_APT_RADAR_SEARCHES_PATH=data/searches.json
 NYC_APT_RADAR_NTFY_TOPIC=your-private-ntfy-topic
 NYC_APT_RADAR_NTFY_BASE_URL=https://ntfy.sh
+OPENAI_API_KEY=sk-...
 ```
 
-Optional values:
+Useful tuning values:
 
 ```bash
 NYC_APT_RADAR_DATABASE_PATH=data/nyc-apt-radar-loop.sqlite
 NYC_APT_RADAR_SEARCH_RESULT_LIMIT=12
 NYC_APT_RADAR_FETCH_TIMEOUT_MS=15000
 NYC_APT_RADAR_SOURCE_CONCURRENCY=4
-NYC_APT_RADAR_AGENT_INTERVAL_MINUTES=60
+NYC_APT_RADAR_AGENT_MAX_ITERATIONS=6
+NYC_APT_RADAR_OPENAI_MODEL=gpt-5.5
+NYC_APT_RADAR_OPENAI_REASONING_EFFORT=low
+NYC_APT_RADAR_OPENAI_TIMEOUT_MS=30000
 NYC_APT_RADAR_NTFY_TIMEOUT_MS=10000
 ```
 
-Secrets belong in `.env`, not in systemd units, launchd plists, README snippets, or committed JSON files.
+Private runtime files are ignored by git:
 
-### `data/searches.json`
+```text
+.env
+data/preferences.json
+data/searches.json
+data/*.sqlite
+```
 
-This file controls where the worker looks. The app does not wander to generic sources.
+## Run
 
-Example:
+Start with readiness:
+
+```bash
+npm run doctor
+```
+
+Run a safe agent pass without live ntfy delivery:
+
+```bash
+npm run agent:dry-run
+```
+
+Run a live pass after `doctor` is clean and `notify:test` works:
+
+```bash
+npm run notify:test
+npm run agent:run
+```
+
+Inspect output:
+
+```bash
+npm run radar
+npm run agent:recommendations
+npm run agent:trace
+```
+
+Answer a structured operator review when `agent:recommendations` shows one:
+
+```bash
+npm run agent:review -- --id <review-id> --answer "<option label>"
+```
+
+Verify the persisted loop contract:
+
+```bash
+npm run agent:verify
+```
+
+Inspect a specific persisted loop trace:
+
+```bash
+npm run agent:trace -- --run <run-id>
+```
+
+## VPS
+
+For a Linux VPS, use the systemd examples in `deploy/`. They run the same
+`npm run agent:run` command as the terminal workflow and keep deployment logic
+out of the TypeScript app.
+
+```bash
+sudo cp deploy/nyc-apt-radar.service.example /etc/systemd/system/nyc-apt-radar.service
+sudo cp deploy/nyc-apt-radar.timer.example /etc/systemd/system/nyc-apt-radar.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now nyc-apt-radar.timer
+```
+
+## Commands
+
+Operator commands:
+
+```bash
+npm run doctor
+npm run agent:dry-run
+npm run agent:run
+npm run radar
+npm run agent:recommendations
+npm run agent:trace
+npm run agent:review -- --id <review-id> --answer "<option label>"
+npm run agent:verify
+npm run notify:test
+```
+
+Verification commands:
+
+```bash
+npm run typecheck
+npm run test
+npm run build
+```
+
+## Configuration
+
+`data/searches.json` is the only source access list. Paste public StreetEasy search URLs and set them enabled:
 
 ```json
 {
@@ -117,309 +174,55 @@ Example:
 }
 ```
 
-The template starts disabled. Paste a real public StreetEasy search URL and set `"enabled": true`.
+`data/preferences.json` controls deterministic scoring: budget, neighborhoods, commute targets, bedrooms, bathrooms, pets, fee preference, dealbreakers, nice-to-haves, and hot-score threshold.
 
-Inspect configured searches:
+Unknown listing facts lower confidence. They do not automatically reject a listing.
 
-```bash
-npm run searches
-```
+## Agent Boundary
 
-### `data/preferences.json`
+The supervisor can call bounded local tools:
 
-This file controls scoring and commute evaluation. Edit budget, neighborhoods, commute targets, pet requirements, fee preference, dealbreakers, nice-to-haves, and the hot-score threshold.
+- get radar state
+- update working memory
+- set an episode plan
+- run one configured StreetEasy discovery pass
+- inspect a listing
+- draft outreach for operator review
+- inspect recent failures
+- request structured operator review
+- record an evidence-backed recommendation
+- stop with a structured decision
 
-Each commute target needs:
+The supervisor cannot fetch outside configured public searches, use credentials, bypass source controls, invent listing facts, send outreach, or directly mutate listing status.
 
-```json
-{
-  "label": "Bryant Park",
-  "address": "Bryant Park, New York, NY",
-  "latitude": 40.7536,
-  "longitude": -73.9832,
-  "maxMinutes": 35
-}
-```
+Every ordinary model tool call declares intent. Runtime guardrails allow, rewrite, or block the call before side effects happen. Batched tool calls are blocked after the first. Listing-specific recommendations and review requests require in-run evidence, and outreach/status recommendations require a prior listing inspection.
 
-Unknown listing facts lower confidence; they do not automatically reject a listing.
+Completed runs persist initial context, model/tool trace, plans, working memory, guardrails, recommendations, operator reviews, contract audits, strict episode evaluations, reflections, experiments, and playbook directives.
 
-### ntfy
-
-Create a private ntfy topic, put it in `.env`, and subscribe to that topic in the ntfy app.
-
-Test it with:
-
-```bash
-npm run notify:test
-```
-
-The test command sends one generic message:
-
-```text
-NYC Apt Radar test notification. If you see this, ntfy is configured.
-```
-
-The worker never sends outreach messages automatically.
-
-## Operator Commands
-
-Setup and health:
-
-```bash
-npm run doctor
-npm run reset
-npm run test
-npm run typecheck
-npm run build
-```
-
-Run the worker:
-
-```bash
-npm run agent:dry-run
-npm run agent:run
-```
-
-Inspect state:
-
-```bash
-npm run searches
-npm run events
-npm run radar
-npm run notifications
-```
-
-Work with listings:
-
-```bash
-npm run intake
-npm run listing:update
-npm run listing:status
-npm run listing:draft
-```
-
-Local macOS deployment:
-
-```bash
-npm run agent:install -- --interval-minutes=60
-npm run agent:logs
-npm run agent:uninstall
-```
-
-Ubuntu VPS deployment:
-
-```bash
-npm run agent:install:systemd -- --interval-minutes=60
-npm run agent:uninstall:systemd
-```
-
-## Is It Working?
-
-Start with:
-
-```bash
-npm run doctor
-```
-
-A healthy doctor report should show:
-
-- database readiness
-- at least one active StreetEasy search
-- a readable preference profile
-- at least one commute target
-- a valid agent interval
-- ntfy configured for live runs
-
-Then run:
-
-```bash
-npm run agent:dry-run
-```
-
-A healthy dry run should report searches checked, documents seen, listings found or saved, ranked listings, and skipped notification decisions. Skipped notifications are expected in dry-run mode.
-
-Inspect ranked listings:
-
-```bash
-npm run radar
-```
-
-Healthy radar output should show listings ordered by score with explanation text and commute details.
-
-Inspect discovery history:
-
-```bash
-npm run events
-```
-
-Healthy events output should show successful search documents, duplicates, or honest fetch/extraction failures. If StreetEasy blocks normal public access, the app records that failure instead of bypassing it.
-
-Inspect notification decisions:
-
-```bash
-npm run notifications
-```
-
-Healthy notification output should show sent, skipped, duplicate, or failed notification attempts. This is the audit trail that prevents repeated hot-listing spam.
-
-## Deploy On An Ubuntu VPS
-
-The VPS deployment runs the same worker command on a systemd timer:
-
-```bash
-npm run agent:run
-```
-
-Recommended shape:
-
-- Ubuntu with Node 20 or newer, npm, git, and systemd
-- Repo at `/opt/nyc-apt-radar`
-- SQLite in the repo `data/` directory, or an explicit persistent path in `NYC_APT_RADAR_DATABASE_PATH`
-- Secrets in `/opt/nyc-apt-radar/.env`
-- ntfy as the notification channel
-
-One-time setup:
-
-```bash
-sudo mkdir -p /opt/nyc-apt-radar
-sudo chown "$USER" /opt/nyc-apt-radar
-git clone <repo-url> /opt/nyc-apt-radar
-cd /opt/nyc-apt-radar
-npm install
-cp -n .env.example .env
-cp -n data/preferences.example.json data/preferences.json
-cp -n data/searches.example.json data/searches.json
-```
-
-Edit the VPS config files:
-
-```text
-/opt/nyc-apt-radar/.env
-/opt/nyc-apt-radar/data/preferences.json
-/opt/nyc-apt-radar/data/searches.json
-```
-
-Verify before installing the timer:
-
-```bash
-npm run doctor
-npm run notify:test
-npm run agent:dry-run
-npm run radar
-npm run notifications
-```
-
-Install and start the timer:
-
-```bash
-npm run agent:install:systemd -- --interval-minutes=60
-```
-
-Preview what would be installed:
-
-```bash
-npm run agent:install:systemd -- --dry-run
-```
-
-Inspect the timer and worker:
-
-```bash
-systemctl status nyc-apt-radar.timer
-systemctl status nyc-apt-radar.service
-journalctl -u nyc-apt-radar.service -n 80 --no-pager
-```
-
-Stop the VPS timer:
-
-```bash
-npm run agent:uninstall:systemd
-```
-
-Example systemd units are checked in under `deploy/` for review or manual installation.
-
-## Deploy Locally With launchd
-
-The macOS LaunchAgent also runs:
-
-```bash
-npm run agent:run
-```
-
-Install and start it:
-
-```bash
-npm run agent:install -- --interval-minutes=60
-```
-
-Preview the plist:
-
-```bash
-npm run agent:install -- --dry-run
-```
-
-Read local launchd logs:
-
-```bash
-npm run agent:logs
-```
-
-Stop local deployment:
-
-```bash
-npm run agent:uninstall
-```
-
-## Architecture
-
-The code is intentionally small and boring:
-
-- `src/core/*`: listing model, preferences, field finalization, commute estimates, scoring, ranking, outreach drafts, and statuses
-- `src/discovery/*`: StreetEasy search configuration, public fetch collection, extraction, intake, and the one-pass agent loop
-- `src/storage/*`: local SQLite schema and repositories for listings, discovery events, and notifications
-- `src/notifications/*`: ntfy delivery and notification decision recording
-- `src/diagnostics/*`: readiness checks used by `doctor` and deployment installers
-- `src/automation/*`: launchd and systemd unit rendering
-- `scripts/*`: terminal commands for the operator
-- `tests/*`: behavior tests for the radar loop
-
-The persistence model is local-first. The scoring model is deterministic. The extraction boundary is inspectable. Notifications are side effects, so they are deduped and auditable.
+`agent:verify` is the read-only evidence gate. It fails when the latest completed run does not prove the loop contract.
 
 ## Troubleshooting
 
-Run:
-
-```bash
-npm run doctor
-```
-
-Common fixes:
-
 - No active search: edit `data/searches.json`, paste a public StreetEasy URL, and set `"enabled": true`.
 - Missing preferences: copy `data/preferences.example.json` to `data/preferences.json`.
+- Missing OpenAI: set `OPENAI_API_KEY`, then run `npm run doctor`.
 - Missing ntfy: set `NYC_APT_RADAR_NTFY_TOPIC`, then run `npm run notify:test`.
-- Empty radar: run `npm run agent:dry-run`, then `npm run events` to see whether searches returned listings or failures.
-- Duplicate-looking runs: check `npm run events` and `npm run notifications`; duplicates should be recorded without notification spam.
-- VPS logs: run `journalctl -u nyc-apt-radar.service -n 80 --no-pager`.
-- Mac logs: run `npm run agent:logs`.
+- Empty radar: run `npm run agent:dry-run`, then inspect `npm run agent:recommendations` and the run summary.
+- StreetEasy blocks access: the app records the failed source event honestly. It does not bypass controls.
 
-## Related Docs
+## Architecture
 
-- `SPEC.md`: product boundary and acceptance criteria
-- `OPERATING_PRINCIPLES.md`: product and engineering judgment
-- `AGENTS.md`: instructions for future coding agents
+```text
+src/agent          model control plane
+src/discovery      configured StreetEasy discovery
+src/core           deterministic domain logic
+src/storage        durable state and audit trail
+src/notifications  bounded notification side effects
+src/diagnostics    readiness and loop verification
+scripts            minimal operator commands
+tests              behavior that protects the main loop
+```
 
-## Out Of Scope
+## Next Work
 
-- Credentialed scraping
-- CAPTCHA bypassing
-- Stealth browser automation
-- Platform evasion
-- Model extraction in the autonomous loop
-- Automatic outreach sending
-- Public marketplace features
-- Multi-user features
-- Payments
-- Authentication
-- Sensitive document storage
-- Native mobile app
-- Decorative web UI
+Make the existing loop more useful before adding surfaces: improve extraction coverage for inspectable StreetEasy structured data, strengthen commute estimates, and make `agent:recommendations` easier to scan without adding a web app.

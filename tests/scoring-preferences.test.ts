@@ -104,7 +104,7 @@ function withPets(petRequirements: PreferenceProfile["petRequirements"]): Prefer
 function makeListing(overrides: Partial<Listing> = {}): Listing {
   return {
     id: "listing-1",
-    source: "manual",
+    source: "StreetEasy",
     sourceUrl: "https://streeteasy.com/building/example/1",
     title: "Chelsea 1BR",
     address: "345 W 30th St #4B",

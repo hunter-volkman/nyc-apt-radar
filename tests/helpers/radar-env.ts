@@ -47,7 +47,6 @@ export function radarTestEnv(workspace: RadarTestWorkspace, overrides: RadarEnvO
     NYC_APT_RADAR_PREFERENCES_PATH: workspace.preferencesPath,
     NYC_APT_RADAR_SEARCHES_PATH: workspace.searchesPath,
     NYC_APT_RADAR_FETCH_TIMEOUT_MS: "1000",
-    NYC_APT_RADAR_AGENT_INTERVAL_MINUTES: "60",
     ...overrides,
   };
 }

@@ -11,7 +11,6 @@ const listings = listRankedListings(profile);
 if (!listings.length) {
   console.log("No listings yet.");
   console.log("Run: npm run agent:run -- --no-notify");
-  console.log("Or intake a known listing URL: npm run intake -- https://streeteasy.com/building/...");
   process.exit(0);
 }
 
@@ -36,9 +35,7 @@ for (const [index, listing] of listings.entries()) {
   if (listing.sourceUrl) {
     console.log(`    URL: ${listing.sourceUrl}`);
   }
-  console.log(`    Follow up: npm run listing:status -- ${listing.id} interested`);
-  console.log(`               npm run listing:draft -- ${listing.id}`);
-  console.log(`               npm run listing:update -- ${listing.id} --notes "Reached out; waiting on reply."`);
+  console.log("    Review agent recommendations: npm run agent:recommendations");
   console.log("");
 }
 

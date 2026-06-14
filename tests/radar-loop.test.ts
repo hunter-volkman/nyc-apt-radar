@@ -19,6 +19,7 @@ const missingSearchesPath = path.join(testWorkspace, "missing-searches.json");
 beforeEach(() => {
   process.env.NYC_APT_RADAR_PREFERENCES_PATH = missingPreferencesPath;
   process.env.NYC_APT_RADAR_SEARCHES_PATH = missingSearchesPath;
+  process.env.OPENAI_API_KEY = "test-openai-key";
 });
 
 afterEach(async () => {
@@ -44,7 +45,7 @@ afterEach(async () => {
   delete process.env.NYC_APT_RADAR_SEARCHES_PATH;
   delete process.env.NYC_APT_RADAR_SEARCH_RESULT_LIMIT;
   delete process.env.NYC_APT_RADAR_FETCH_TIMEOUT_MS;
-  delete process.env.NYC_APT_RADAR_AGENT_INTERVAL_MINUTES;
+  delete process.env.OPENAI_API_KEY;
 });
 
 describe("apartment radar loop", () => {
@@ -229,7 +230,7 @@ describe("automated discovery loop", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const { runDiscoveryOnce } = await import("../src/discovery/discovery-pass.js");
     const result = await runDiscoveryOnce({
       notificationMode: "off",
       searches: [{
@@ -299,7 +300,7 @@ describe("automated discovery loop", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const { runDiscoveryOnce } = await import("../src/discovery/discovery-pass.js");
     const result = await runDiscoveryOnce({
       notificationMode: "off",
       searches: [{
@@ -372,7 +373,7 @@ describe("automated discovery loop", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const { runDiscoveryOnce } = await import("../src/discovery/discovery-pass.js");
     const { listRankedListings } = await import("../src/storage/listings.js");
     const { listNotifications } = await import("../src/storage/notifications.js");
 
@@ -408,8 +409,8 @@ describe("automated discovery loop", () => {
 
     const processed = createSourceEvent({
       sourceId: "history-good",
-      sourceType: "file",
-      sourceRef: "good.txt",
+      sourceType: "url",
+      sourceRef: "https://fixture.test/good-feed",
       rawText: "345 W 30th St #4B\n$3,795",
       discoveredAt: "2026-06-12T12:00:00.000Z",
     });
@@ -432,88 +433,6 @@ describe("automated discovery loop", () => {
     expect(events.find((event) => event.sourceId === "history-bad")?.errorMessage).toContain("Fetch failed");
   });
 
-  it("intakes a pasted URL and saves a URL-only lead when plain fetch is unavailable", async () => {
-    const url = "https://streeteasy.com/building/345-west-30-street-new_york/4b";
-    const fetchMock = vi.fn(async () => new Response("blocked", {
-      status: 403,
-      statusText: "Forbidden",
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { intakeListings } = await import("../src/discovery/intake.js");
-    const result = await intakeListings({
-      inputs: [{ value: url }],
-      notify: false,
-      profile: defaultPreferenceProfile,
-      now,
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(url, expect.objectContaining({
-      headers: expect.objectContaining({
-        Accept: expect.stringContaining("text/html"),
-      }),
-    }));
-    expect(result.errors).toEqual([]);
-    expect(result.warnings[0]).toContain("Saved URL-only lead");
-    expect(result.urlOnlyListings).toBe(1);
-    expect(result.listingsSaved[0]?.source).toBe("StreetEasy");
-    expect(result.listingsSaved[0]?.sourceUrl).toBe(url);
-    expect(result.listingsSaved[0]?.title).toContain("#4B");
-  });
-
-  it("intakes a file of URLs as separate URL leads", async () => {
-    const sourceFile = path.join(testWorkspace, "url-leads.txt");
-    fs.writeFileSync(sourceFile, [
-      "https://streeteasy.com/building/392-broadway-brooklyn/4",
-      "https://streeteasy.com/building/52-ainslie-street-brooklyn/4g",
-    ].join("\n"));
-    const fetchMock = vi.fn(async () => new Response("blocked", {
-      status: 403,
-      statusText: "Forbidden",
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { intakeListings } = await import("../src/discovery/intake.js");
-    const result = await intakeListings({
-      inputs: [{ kind: "file", value: sourceFile }],
-      notify: false,
-      profile: defaultPreferenceProfile,
-      now,
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result.documentsSeen).toBe(2);
-    expect(result.listingsSaved).toHaveLength(2);
-    expect(result.urlOnlyListings).toBe(2);
-    expect(result.listingsSaved.map((listing) => listing.sourceUrl)).toEqual([
-      "https://streeteasy.com/building/392-broadway-brooklyn/4",
-      "https://streeteasy.com/building/52-ainslie-street-brooklyn/4g",
-    ]);
-  });
-
-  it("rejects unstructured listing text during file intake without network calls", async () => {
-    const sourceFile = path.join(testWorkspace, "intake-listing.txt");
-    fs.writeFileSync(sourceFile, [
-      "56 Ainslie Street #4G",
-      "$3,999",
-      "Williamsburg apartment. Cats allowed. Broker fee unknown.",
-    ].join("\n"));
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { intakeListings } = await import("../src/discovery/intake.js");
-    const result = await intakeListings({
-      inputs: [{ kind: "file", value: sourceFile }],
-      notify: false,
-      profile: defaultPreferenceProfile,
-      now,
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(result.listingsSaved).toEqual([]);
-    expect(result.errors[0]).toContain("No structured listing data found");
-  });
-
   it("records timed-out StreetEasy search fetches", async () => {
     process.env.NYC_APT_RADAR_FETCH_TIMEOUT_MS = "5";
     const fetchMock = vi.fn((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
@@ -526,7 +445,7 @@ describe("automated discovery loop", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.useFakeTimers();
 
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const { runDiscoveryOnce } = await import("../src/discovery/discovery-pass.js");
     const pending = runDiscoveryOnce({
       notify: false,
       searches: [{
@@ -547,48 +466,6 @@ describe("automated discovery loop", () => {
     expect(result.listingsFound).toBe(0);
     expect(events.find((event) => event.sourceId === "slow-streeteasy")?.status).toBe("failed");
     expect(events.find((event) => event.sourceId === "slow-streeteasy")?.errorMessage).toContain("timed out");
-  });
-
-  it("intakes structured JSON files and can reprocess after dedupe reset", async () => {
-    const sourceFile = path.join(testWorkspace, "json-listing.json");
-    fs.writeFileSync(sourceFile, JSON.stringify({
-      listings: [{
-        id: "json-explicit-id",
-        source: "StreetEasy",
-        sourceUrl: "https://fixture.test/json-explicit-id",
-        title: "JSON Chelsea Lead",
-        address: "345 W 30th St #4B",
-        neighborhood: "Chelsea",
-        borough: "Manhattan",
-        rent: 3795,
-        status: "scheduled",
-        appointmentAt: "2026-06-13T11:00:00-04:00",
-        latitude: 40.7502,
-        longitude: -73.9970,
-      }],
-    }));
-
-    const { intakeListings } = await import("../src/discovery/intake.js");
-    const { clearSourceEvents } = await import("../src/storage/discovery.js");
-    const { getListing } = await import("../src/storage/listings.js");
-
-    const input = {
-      inputs: [{ kind: "file" as const, value: sourceFile, sourceName: "JSON listing" }],
-      notify: false,
-      profile: defaultPreferenceProfile,
-      now,
-    };
-
-    const first = await intakeListings(input);
-    const duplicate = await intakeListings(input);
-    clearSourceEvents();
-    const afterReset = await intakeListings(input);
-
-    expect(first.listingsSaved[0]?.id).toBe("json-explicit-id");
-    expect(getListing("json-explicit-id")?.status).toBe("scheduled");
-    expect(duplicate.duplicateDocuments).toBe(1);
-    expect(afterReset.duplicateDocuments).toBe(0);
-    expect(afterReset.listingsFound).toBe(1);
   });
 
   it("sends ntfy push notifications for hot matches and records the attempt", async () => {
@@ -747,7 +624,7 @@ describe("automated discovery loop", () => {
     ].join(""), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { runDiscoveryOnce } = await import("../src/discovery/agent-loop.js");
+    const { runDiscoveryOnce } = await import("../src/discovery/discovery-pass.js");
     const { listNotifications } = await import("../src/storage/notifications.js");
     const result = await runDiscoveryOnce({
       notificationMode: "dry-run",
@@ -770,7 +647,7 @@ describe("automated discovery loop", () => {
     const { addListing, updateListingFacts } = await import("../src/storage/listings.js");
     const listing = addListing({
       id: "post-showing-update",
-      source: "manual",
+      source: "StreetEasy",
       title: "Post showing lead",
       address: "345 W 30th St #4B",
       neighborhood: "Chelsea",
@@ -876,11 +753,10 @@ describe("local environment loading", () => {
   it("parses env files and does not override shell values", async () => {
     const envPath = path.join(testWorkspace, "radar.env");
     process.env.NYC_APT_RADAR_NTFY_TOPIC = "shell-topic";
-    delete process.env.NYC_APT_RADAR_AGENT_INTERVAL_MINUTES;
     fs.writeFileSync(envPath, [
       "# local config",
       "NYC_APT_RADAR_NTFY_TOPIC=file-topic",
-      "NYC_APT_RADAR_AGENT_INTERVAL_MINUTES=\"7\"",
+      "NYC_APT_RADAR_SEARCH_RESULT_LIMIT=\"7\"",
       "BAD LINE",
     ].join("\n"));
 
@@ -889,7 +765,7 @@ describe("local environment loading", () => {
 
     expect(loaded).toEqual([envPath]);
     expect(process.env.NYC_APT_RADAR_NTFY_TOPIC).toBe("shell-topic");
-    expect(process.env.NYC_APT_RADAR_AGENT_INTERVAL_MINUTES).toBe("7");
+    expect(process.env.NYC_APT_RADAR_SEARCH_RESULT_LIMIT).toBe("7");
     expect(parseEnvFile("A=1\nB='two'\nC=\"three\"")).toEqual([
       ["A", "1"],
       ["B", "two"],
@@ -897,49 +773,6 @@ describe("local environment loading", () => {
     ]);
   });
 
-  it("appends missing ntfy config without overwriting existing env values", async () => {
-    const { appendMissingEnvValues, generateNtfyTopic } = await import("../src/config/ntfy-setup.js");
-    const topic = generateNtfyTopic();
-
-    expect(topic).toMatch(/^nyc-apt-radar-[a-f0-9]{48}$/);
-    expect(appendMissingEnvValues("A=1\n", {
-      NYC_APT_RADAR_NTFY_TOPIC: "topic",
-      NYC_APT_RADAR_NTFY_BASE_URL: "https://ntfy.sh",
-    })).toContain("NYC_APT_RADAR_NTFY_TOPIC=topic");
-    expect(appendMissingEnvValues("NYC_APT_RADAR_NTFY_TOPIC=existing\n", {
-      NYC_APT_RADAR_NTFY_TOPIC: "new",
-    })).toBe("NYC_APT_RADAR_NTFY_TOPIC=existing\n");
-  });
-});
-
-describe("background automation setup", () => {
-  it("generates a LaunchAgent that runs one agent cycle on an interval", async () => {
-    const { buildLaunchAgentPlist } = await import("../src/automation/launchd.js");
-    const plist = buildLaunchAgentPlist({
-      cwd: "/tmp/nyc-apt-radar",
-      label: "com.test.nyc-apt-radar",
-      intervalMinutes: 7,
-      logDirectory: "/tmp/nyc-apt-radar/logs",
-    });
-
-    expect(plist).toContain("<string>com.test.nyc-apt-radar</string>");
-    expect(plist).toContain("<string>/tmp/nyc-apt-radar</string>");
-    expect(plist).toContain("<string>agent:run</string>");
-    expect(plist).not.toContain("<string>--once</string>");
-    expect(plist).not.toContain("--allow-local-notifications");
-    expect(plist).toContain("<integer>420</integer>");
-    expect(plist).toContain("/tmp/nyc-apt-radar/logs/agent.log");
-  });
-
-  it("defaults LaunchAgent runs to one hour", async () => {
-    const { buildLaunchAgentPlist } = await import("../src/automation/launchd.js");
-    const plist = buildLaunchAgentPlist({
-      cwd: "/tmp/nyc-apt-radar",
-      label: "com.test.nyc-apt-radar",
-    });
-
-    expect(plist).toContain("<integer>3600</integer>");
-  });
 });
 
 function makeListing(overrides: ListingDraft) {

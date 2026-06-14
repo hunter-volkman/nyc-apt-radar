@@ -1,52 +1,43 @@
-# SPEC.md - NYC Apartment Radar
+# SPEC.md - NYC Apt Radar
 
-## Goal
+## Product Thesis
 
-Build a private, local-first apartment discovery agent loop for a New York City apartment search.
+NYC Apt Radar is a private, model-supervised NYC apartment discovery loop.
 
 ```text
-StreetEasy search -> discovery event -> extract listing -> finalize fields -> estimate commute -> score -> rank -> notify -> draft outreach -> track status
+objective -> observe radar state -> plan -> remember -> run configured StreetEasy discovery when useful -> extract listing facts or URL-only leads -> score/rank -> inspect evidence -> notify, recommend, or request operator review -> evaluate -> audit -> remember -> stop
 ```
 
-The product is acceptable when the local operator can leave the loop running, receive ntfy push notifications for interesting matches, inspect why a listing scored well or poorly, and act quickly without the app sending messages automatically.
+The product is acceptable when the local operator can run the loop, receive ntfy notifications for high-signal matches, inspect why listings scored well or poorly, review evidence-backed recommendations, answer structured human-review requests, and audit the model-directed trace.
 
 ## User
 
 Primary user: the local operator.
 
-This is not a public marketplace or general real estate product. Optimize for speed, signal, and honest automation.
-
-## Product Principles
-
-- Speed over completeness.
-- Signal over volume.
-- Human in control.
-- Deterministic scoring before model judgment.
-- Local-first persistence.
-- Plain automation over theatrical demos.
-- Respect source access controls.
-- No fake live integrations.
+This is not a public real estate product. Optimize for speed, signal, honesty, and operator control.
 
 ## In Scope
 
-- Run configured StreetEasy public search URLs on demand or through launchd/systemd.
-- Intake one-off URLs, structured files, pasted text, and stdin from a terminal command.
-- Extract candidate listings into a normalized shape.
-- Store discovery events for dedupe and audit.
-- Score listings against the configured preferences.
-- Estimate subway commute quality to multiple target addresses.
-- Show ranked listings in the terminal.
-- Send ntfy push notifications for hot matches.
-- Generate editable outreach drafts.
-- Track status.
-- Extract StreetEasy JSON-LD and structured JSON listing data without model calls.
+- Run configured public StreetEasy search URLs on demand.
+- Extract StreetEasy JSON-LD and structured JSON listing facts without model calls.
+- Save URL-only leads when configured search pages reveal listing URLs but detail extraction is blocked.
+- Normalize listings and persist source events for dedupe and audit.
+- Score and rank listings deterministically against JSON preferences.
+- Estimate subway commute quality to configured targets.
+- Record ntfy notification decisions and send live hot-match pushes only when explicitly running live.
+- Generate outreach drafts for operator review without sending them.
+- Run an OpenAI Responses API supervisor that chooses bounded local tools, records a trace, persists plans and working memory, writes evidence-backed recommendations or structured operator-review requests, and stops clearly.
+- Persist initial run context, guardrails, recommendations, reviews, contract audits, strict episode evaluations, playbook directives, experiments, and reflections.
+- Verify the latest completed run with a read-only persisted-evidence gate.
 
 ## Out Of Scope
 
+- In-app scheduler or deployment framework.
 - Credentialed scraping.
 - CAPTCHA bypassing.
 - Stealth browser automation.
 - Platform evasion.
+- Model-controlled source access or extraction of unsupported facts.
 - Automatic message sending.
 - Public marketplace features.
 - Multi-user features.
@@ -55,6 +46,9 @@ This is not a public marketplace or general real estate product. Optimize for sp
 - Sensitive document storage.
 - Native mobile app.
 - Decorative web UI.
+- Manual URL/file/stdin intake as a primary workflow.
+
+Minimal VPS operation through static systemd example units is allowed. Installer scripts and deployment frameworks are not.
 
 ## Listing Model
 
@@ -88,8 +82,6 @@ Optional practical fields:
 - `contactName`
 - `appointmentAt`
 
-## Statuses
-
 Supported statuses:
 
 ```text
@@ -98,36 +90,11 @@ new, interested, contacted, scheduled, rejected, viewed, applied
 
 ## Preferences
 
-The preference profile must support:
+The preference profile must support budget, preferred/acceptable/avoided neighborhoods, commute targets, bedroom and bathroom preference, pet requirements, fee preference, dealbreakers, nice-to-haves, and hot-score threshold.
 
-- budget
-- preferred, acceptable, and avoided neighborhoods
-- multiple commute target addresses
-- bedroom and bathroom preference
-- pet requirements
-- fee preference
-- dealbreakers
-- nice-to-haves
-- hot-score threshold
+The running loop must support a JSON preference file so budget, neighborhoods, and commute targets change without code edits.
 
-Unknown values should lower confidence, not automatically reject a listing.
-
-The default profile may live in TypeScript, but the running loop must support a JSON preference file so budget, neighborhoods, and any number of commute target addresses can change without code edits.
-
-## Commute Model
-
-For each listing and each target address, estimate:
-
-- nearest useful station
-- walk time to train
-- train lines
-- train switches
-- train time
-- destination station
-- walk time from train
-- total time
-
-The first implementation may use a small local subway graph. It must be inspectable and easy to expand. GTFS-backed routing is future hardening.
+Unknown values lower confidence. They do not automatically reject a listing.
 
 ## Scoring
 
@@ -141,77 +108,94 @@ Scoring is deterministic from 0 to 100:
 - freshness: 5
 - completeness/confidence: 5
 
-Each score must include a human-readable explanation.
-
-Example:
-
-```text
-86/100 - Strong match. Within budget, preferred neighborhood, Bryant Park: 31 min via M, cats allowed, fee status unknown.
-```
+Each score includes a human-readable explanation.
 
 ## Notification Logic
 
-A listing is hot when:
-
-- score is at or above the configured hot threshold
-- status is not rejected
-- the listing and score have not already triggered a notification
+A listing is hot when its score is at or above the configured hot threshold, it is not rejected, and that listing/score pair has not already triggered a notification.
 
 Notifications:
 
-- Send through ntfy when `NYC_APT_RADAR_NTFY_TOPIC` is configured.
-- Record failed notification attempts when ntfy is not configured or delivery fails.
-- `npm run agent:run` should fail fast on failed readiness checks, including missing StreetEasy search or ntfy configuration.
+- Send through ntfy when `NYC_APT_RADAR_NTFY_TOPIC` is configured and the run is live.
+- Record skipped decisions during dry runs.
+- Record failed notification attempts when configuration or delivery fails.
 - Never send outreach messages.
-- `npm run notify:test` should fail loudly unless an ntfy topic is configured.
 
-## Extraction Boundary
+## Agent Supervisor
 
-The autonomous loop must not require an API key or model call. Extract only from inspectable local/public source data:
+The main loop is a bounded agent:
 
-- StreetEasy search JSON-LD -> `ListingDraft[]`
-- Structured JSON manual intake files -> `ListingDraft[]`
-- Plain listing URLs -> URL-only leads
+- It receives a clear objective and local tool set.
+- It observes radar state before acting.
+- It records an episode plan with success criteria, planned steps, stop conditions, risk checks, and confidence.
+- It maintains working memory for focus, hypotheses, next actions, open questions, and confidence.
+- It chooses one tool action per model turn and declares intent.
+- It uses tool outputs as ground truth.
+- Runtime guardrails allow, rewrite, or block tool calls before side effects happen.
+- Batched model tool calls execute only the first call and block the rest.
+- Listing-specific writes require prior in-run observation, and outreach/status recommendations require prior listing inspection.
+- It writes recommendations and operator-review requests only with structured evidence.
+- It stops with a structured decision against the episode plan.
+- It evaluates the compact trace through a strict structured function call.
+- It fails evaluation rather than fabricating fallback lessons, experiments, or playbook entries when critic output is malformed.
+- It persists a deterministic contract audit covering the minimum loop contract and causal ordering.
 
-Do not use model calls for ranking, scoring, source access, stealth browsing, extraction, or automatic outreach. If source text is unstructured and no structured fields can be found, record the failure honestly or save an explicit URL-only lead.
+First-class tools:
+
+- inspect radar state
+- update working memory
+- set episode plan
+- run one configured StreetEasy discovery pass
+- inspect a listing
+- draft outreach for review
+- inspect recent failures
+- request structured operator review
+- record recommendation
+- stop the loop
 
 ## Commands
 
-Required commands:
+Operator commands:
 
 ```bash
 npm run doctor
+npm run agent:dry-run
 npm run agent:run
-npm run agent:install
-npm run agent:uninstall
-npm run agent:logs
-npm run searches
-npm run events
-npm run notify:test
+npm run agent:trace
 npm run radar
-npm run intake
-npm run listing:update
-npm run listing:status
-npm run listing:draft
-npm run test
+npm run agent:recommendations
+npm run agent:review
+npm run agent:verify
+npm run notify:test
+```
+
+Verification commands:
+
+```bash
 npm run typecheck
+npm run test
 npm run build
 ```
 
 ## Acceptance Criteria
 
 - The project runs locally from a clean install.
-- One-off listing input works from a pasted URL, a file path, pasted text, or stdin.
+- `doctor` reports database, search, preference, commute-target, OpenAI, ntfy, and local-runtime readiness.
+- `doctor` fails when no active StreetEasy search is configured, `OPENAI_API_KEY` is missing, or live ntfy configuration is missing.
 - Configured StreetEasy searches can be fetched with plain HTTP.
 - One failed search is recorded honestly.
-- A doctor command reports database, search, preference, commute-target, agent interval, and ntfy readiness.
-- A doctor command fails when no active StreetEasy search is configured or `NYC_APT_RADAR_NTFY_TOPIC` is missing.
 - Duplicate source events do not create notification spam.
-- Listings are normalized and persisted.
-- Listings are scored and ranked.
+- Listings are normalized, persisted, scored, and ranked.
 - Commute estimates include train lines, transfers, walking time, and total time.
-- Hot listings are sent to ntfy or recorded as failed notification attempts.
+- Hot listings are sent to ntfy in live mode or recorded as skipped in dry-run mode.
 - Outreach drafts are generated but never sent automatically.
-- CLI commands load local environment files before reading source, preference, database, and ntfy settings.
+- The OpenAI supervisor dynamically chooses tools, records a trace, persists plans and working memory, and records safe recommendations or operator-review requests.
+- Runtime guardrail decisions are persisted and visible to the model when a call is rewritten or blocked.
+- Stop decisions are structured against the episode plan.
+- Completed runs persist strict episode evaluations, contract audits, reflections, playbook directives, and experiment state.
+- Malformed evaluator output does not create fallback learning artifacts.
+- Operator-facing recommendations include structured evidence and listing-specific provenance.
+- Operator review answers are persisted and visible to future runs.
+- `agent:verify` fails unless the latest completed run proves the persisted loop contract.
 - Tests pass.
 - Typecheck/build pass.

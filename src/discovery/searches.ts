@@ -19,7 +19,7 @@ type SearchConfigFile = {
 };
 
 const defaultSearchesPath = "data/searches.json";
-const defaultUserAgent = "nyc-apt-radar/0.1 local-first apartment search assistant";
+const defaultUserAgent = "nyc-apt-radar/0.1 apartment discovery agent";
 
 export function getSearchesPath() {
   return process.env.NYC_APT_RADAR_SEARCHES_PATH ?? defaultSearchesPath;
